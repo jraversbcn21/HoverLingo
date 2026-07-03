@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HoverLingo</title>
+  <link rel="stylesheet" href="./popup.css" />
+</head>
+<body>
+  <div class="popup">
+    <header class="popup-header">
+      <h1>HoverLingo</h1>
+    </header>
+
+    <section class="section">
+      <div class="toggle-row">
+        <label class="field-label" for="enabledToggle">Enabled</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="enabledToggle" checked />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p id="shortcutHint" class="field-hint"></p>
+    </section>
+
+    <section class="section" id="siteDisableSection">
+      <div class="toggle-row">
+        <label class="field-label" for="disableSiteToggle" id="disableSiteLabel">Disable on this site</label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="disableSiteToggle" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <section class="section">
+      <label class="field-label" for="groqApiKey">Groq API Key</label>
+      <input
+        type="password"
+        id="groqApiKey"
+        placeholder="gsk_..."
+        autocomplete="off"
+      />
+      <p class="field-hint">
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener">
+          Get your free API key at console.groq.com
+        </a>
+      </p>
+    </section>
+
+    <section class="section">
+      <label class="field-label" for="groqModel">Model</label>
+      <select id="groqModel"></select>
+    </section>
+
+    <section class="section">
+      <label class="field-label" for="targetLang">Target Language</label>
+      <select id="targetLang"></select>
+    </section>
+
+    <section class="section">
+      <label class="field-label" for="translationMode">Translation Mode</label>
+      <select id="translationMode">
+        <option value="quick">Quick</option>
+        <option value="learning">Learning</option>
+      </select>
+    </section>
+
+    <section class="section">
+      <label class="field-label" for="hoverDelay">
+        Hover Delay: <span id="hoverDelayValue">300ms</span>
+      </label>
+      <input
+        type="range"
+        id="hoverDelay"
+        min="100"
+        max="1000"
+        step="50"
+        value="300"
+      />
+    </section>
+
+    <section class="section" id="statsSection">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-value" id="statWords">0</span>
+          <span class="stat-label">words</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-value" id="statHitRate">0%</span>
+          <span class="stat-label">cache hits</span>
+        </div>
+      </div>
+      <div class="top-langs" id="topLangs"></div>
+    </section>
+
+    <section class="section actions">
+      <button id="exportBtn" class="action-btn">Export</button>
+      <button id="importBtn" class="action-btn">Import</button>
+    </section>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script type="module" src="./popup.ts"></script>
+</body>
+</html>
