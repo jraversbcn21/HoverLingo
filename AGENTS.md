@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** Fase 4 (2026-07-03). All 4 implementation phases complete. 26 unit tests passing. Remaining tasks are future improvements (icons, i18n, web store, cross-tab cache, crxjs stable).
+**Current state:** Fase 4 complete (2026-07-03). Pre-production review done (2026-07-11): 16 verified bugs found (3 high, 8 medium, 5 low), fix plan documented and NOT yet executed — see "Pre-Production Review" section below. Do not ship to the Chrome Web Store until that plan is executed and the global verification checklist passes.
 
 ---
 
@@ -293,6 +293,26 @@ Note: All `console.log/error/warn` statements have been removed from the product
 - [x] **Fase 3 — Pulido UX:** Text selection, per-site toggle, keyboard shortcut, skeleton loader, accessibility, dark mode, scroll/resize
 - [x] **Fase 4 — Avanzadas:** Learning mode, usage stats, export/import
 - [x] **Tech Debt (partial):** Unit tests (26 tests, 4 modules), TypeScript strict mode
+
+---
+
+## Pre-Production Review (2026-07-11)
+
+Before shipping to the Chrome Web Store, a full bug hunt was run: 4 parallel reviewer agents (content scripts, service worker, popup/manifest, cross-module integration) plus direct line-by-line verification of every finding against the source.
+
+**Result:** 16 verified, real bugs (3 HIGH, 8 MEDIUM, 5 LOW). Full details, severity ranking, and a ready-to-execute fix plan (16 atomic TDD tasks with exact code, tests, and commits) are in:
+
+> **`docs/superpowers/plans/2026-07-11-plan-correccion-bugs-produccion.md`**
+
+Run it with `superpowers:executing-plans` or `superpowers:subagent-driven-development` in a fresh session. Highlights of the 3 HIGH findings (see the plan for full list):
+
+1. **Stale responses overwrite the wrong tooltip** — no request-generation guard in `src/content/index.ts`; hovering word B while word A's request is in flight can render A's result over B, or wipe B's skeleton when A errors.
+2. **Every service-worker error is silenced** — missing API key, timeout, 4xx/5xx all just hide the tooltip with no message (`src/content/index.ts:210-216`), including on first install with no key configured.
+3. **Settings import has no type validation** (`src/popup/popup.ts:147-162`) — a crafted/corrupted JSON file (e.g. `disabledSites` as an object) permanently breaks the per-site toggle with no recovery path.
+
+Also flagged and planned: cache key missing sentence context + model (stale disambiguation for 24h), `qwen3-32b` reasoning `<think>` blocks breaking JSON parsing, per-site disable not covering cross-origin iframes, popup `pagehide` risk of wiping the API key, multi-tab stats race, and more — see the plan document for the complete table with file:line references.
+
+Verified as NOT bugs (don't re-investigate): TRANSLATE message contract, XSS surface (popup uses `textContent`, tooltip escapes via `esc()`), prototype pollution via import, manifest permissions.
 
 ---
 
