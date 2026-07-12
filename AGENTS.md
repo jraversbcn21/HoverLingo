@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** Fase 4 complete (2026-07-03). Pre-production review done (2026-07-11): 16 verified bugs found (3 high, 8 medium, 5 low), fix plan documented and NOT yet executed — see "Pre-Production Review" section below. Do not ship to the Chrome Web Store until that plan is executed and the global verification checklist passes.
+**Current state:** Post-Fase 4 bug fix complete (2026-07-12). 16 pre-production bugs fixed. 48 unit tests. Ready for Chrome Web Store submission.
 
 ---
 
@@ -36,35 +36,35 @@ hoverlingo/
 │   ├── shared/
 │   │   ├── types.ts                      # Interfaces + TARGET_LANGUAGES (30 langs) + StorageData
 │   │   ├── constants.ts                  # DEFAULTS, GROQ_API_URL, GROQ_MODEL, AVAILABLE_MODELS (7)
-│   │   └── prompts.ts                    # buildSystemPrompt(), buildUserPrompt()
+│   │   ├── prompts.ts                    # buildSystemPrompt(), buildUserPrompt()
+│   │   ├── cache-key.ts                  # buildCacheKey() with sentence context hash + model
+│   │   ├── extract-json.ts               # Robust JSON parser: <think> strip, balanced braces, fences
+│   │   └── settings-validation.ts        # sanitizeImportedSettings() with type guards
 │   ├── background/
-│   │   ├── service-worker.ts             # Message router + Groq API (timeout 30s, 429/5xx retry) + commands listener + extractJson() + validateTranslationScript()
+│   │   ├── service-worker.ts             # Message router + Groq API + GET_TAB_HOST + commands + callGroqWithRetry
 │   │   └── cache-l2.ts                   # L2 cache: chrome.storage.local, LRU, 5000 entries, TTL 24h
 │   ├── content/
-│   │   ├── index.ts                      # Entry point, orchestrator, retry logic (6 attempts, exp backoff), stats tracking, word highlight
-│   │   ├── hover-detector.ts             # Debounce 300ms, mouse/keyboard/scroll events, state machine, setEnabled(), MutationObserver (SPA support)
-│   │   ├── text-extractor.ts             # caretRangeFromPoint, word expansion, sentence extraction, text selection, getWordRangeAt()
-│   │   ├── tooltip-renderer.ts           # Floating UI positioning, dark/light/RTL, skeleton loader, accessibility
-│   │   ├── cache-l1.ts                   # L1 cache: Map, LRU, 1000 entries, TTL 30min, dedup of in-flight requests
+│   │   ├── index.ts                      # Entry point, orchestrator, retry (6x exp backoff), delta stats, request gen guard
+│   │   ├── hover-detector.ts             # Debounce 300ms, mouse/keyboard/scroll events, state machine, MutationObserver
+│   │   ├── text-extractor.ts             # caretRangeFromPoint, word expansion, sentence extraction, selection with hit test
+│   │   ├── tooltip-renderer.ts           # Floating UI positioning, dark/light/RTL, skeleton, error feedback, accessibility
+│   │   ├── cache-l1.ts                   # L1 cache: Map, key-based API, LRU, 1000 entries, TTL 30min, dedup
 │   │   ├── word-highlight.ts             # Yellow overlay highlighting on hovered word via Range.getClientRects()
-│   │   └── styles.css                    # Tooltip styles: animations, themes, RTL, scrollbar
+│   │   └── styles.css                    # Tooltip styles: animations, themes, RTL, errors, scrollbar
 │   ├── popup/
-│   │   ├── index.html                    # Settings UI: model, language, mode, delay, toggles (global + per-site), stats cards, export/import buttons
-│   │   ├── popup.ts                      # Direct chrome.storage.local read/write (no SW dep), stats display, export/import
+│   │   ├── index.html                    # Settings UI: model, language, mode, delay, toggles, stats, export/import
+│   │   ├── popup.ts                      # Direct storage access, dynamic shortcut, guarded API key writes
 │   │   └── popup.css                     # Dark theme popup styles + toggle switch + stats cards + action buttons
 │   └── __tests__/
-│       ├── cache-l1.test.ts              # 7 tests: get/set, lang/mode isolation, TTL expiry, LRU eviction, dedup cleanup
+│       ├── cache-l1.test.ts              # 8 tests: key-based API, lang/mode/context isolation, TTL, LRU, dedup
 │       ├── cache-l2.test.ts              # 4 tests: get/set, eviction on overflow, key prefix isolation
 │       ├── prompts.test.ts               # 10 tests: system prompt, user prompt (quick + learning), language fallback
-│       └── text-extractor.test.ts        # 5 tests: selection extraction, truncation, caretRangeFromPoint absence, empty node
+│       ├── text-extractor.test.ts        # 6 tests: selection hit test, truncation, caretRangeFromPoint absence
+│       ├── cache-key.test.ts             # 5 tests: determinism, context/model/lang/mode isolation, empty hash
+│       ├── extract-json.test.ts          # 8 tests: think blocks, fences, nested braces, trailing text, truncated
+│       └── settings-validation.test.ts   # 7 tests: valid shapes, type rejection, clamping, allowlist
 └── dist/                                 # Build output (loaded as unpacked extension)
 ```
-
-### File sizes
-- Content script: ~27.2KB minified (~10.2KB gzipped)
-- Service worker: ~6.5KB minified (~2.8KB gzipped)
-- Popup: ~5.3KB minified (~1.9KB gzipped)
-- Total extension: ~45KB minified
 
 ---
 
@@ -76,46 +76,48 @@ User hovers over text
   ▼
 Content Script (index.ts)
   ├── HoverDetector: respects enabled flag + per-site blacklist, debounce 300ms → onHoverReady(x, y)
-  ├── TextExtractor: caretRangeFromPoint → word expansion → sentence context | text selection support
+  ├── TextExtractor: caretRangeFromPoint → word expansion → sentence context | selection with hit test
   ├── WordHighlight: yellow overlay on hovered word via Range.getClientRects()
-  ├── L1 Cache (Map): check if already translated (TTL 30min, 1000 entries)
-  │     ├── HIT → render tooltip immediately, record cache hit stat
+  ├── Request generation guard: discards stale responses from previous hovers
+  ├── L1 Cache (Map): check if already translated (key = text|hash(sentence)|lang|mode|model, TTL 30min)
+  │     ├── HIT → render tooltip immediately, record cache hit stat (delta)
   │     └── MISS →
-  │           ├── Dedup check: is same word+lang+mode already in-flight?
-  │           │     └── YES → subscribe to existing Promise
+  │           ├── Dedup check: is same key already in-flight?
+  │           │     └── YES → subscribe to existing Promise, count as cache hit
   │           └── NO →
   │                 ├── Show skeleton tooltip
   │                 ├── chrome.runtime.sendMessage({ type: "TRANSLATE", payload })
   │                 │     └── Retry up to 6 times (300ms base, exponential backoff)
-  │                 │         if "Extension context invalidated"
-  │                 └── On success → L1 set → update tooltip, record translation stat
-  │                       On error → hide tooltip
+  │                 │         on "Extension context invalidated", "receiving end does not exist", "message port closed"
+  │                 └── On success → L1 set → update tooltip, record translation stat (delta)
+  │                       On error → show error message in tooltip (API key, timeout, generic)
   │
   ▼
 Service Worker (service-worker.ts)
   ├── Receive TRANSLATE message
-  ├── L2 Cache (chrome.storage.local): check persistent cache (TTL 24h, 5000 entries, LRU eviction)
-  │     ├── HIT → return cached result
+  ├── L2 Cache (chrome.storage.local): key = text|hash(sentence)|lang|mode|model (TTL 24h, 5000 entries)
+  │     ├── HIT → return cached result (propagates cached:true to content script)
   │     └── MISS →
   │           ├── Read API key + model from chrome.storage.local
   │           ├── Build prompts: buildSystemPrompt(targetLang) + buildUserPrompt(...)
   │           ├── POST https://api.groq.com/openai/v1/chat/completions
   │           │     { model, temperature: 0.0, max_tokens: 1024/2048, stream: false }
-  │           │     └── Timeout 30s (AbortController) + retry 429 (1x, Retry-After) + retry 5xx (2x, exp backoff)
-  │           │     NO response_format — not supported by all models (e.g., Qwen)
-  │           ├── extractJson() with regex fallback → validate required fields
-  │           ├── validateTranslationScript() → Unicode script check against target language (confidence → 0 if mismatch)
+  │           │     Qwen models: reasoning_format = "hidden"
+  │           │     └── Timeout 30s (AbortController) + retry 429 (1x, capped 10s Retry-After) + retry 5xx (2x)
+  │           ├── extractJson() with <think> strip + balanced brace extraction
+  │           ├── confidence: defaults to 0.5 if missing; always runs validateTranslationScript()
   │           ├── L2 set → persist
   │           └── sendResponse to content script
   │
   ▼
 Popup (popup.ts)
   ├── Reads/writes directly to chrome.storage.local (no SW dependency)
-  ├── Saves on: input (debounce 500ms), change, blur, pagehide
-  ├── Settings: groqApiKey, groqModel (7 options), targetLang, translationMode, hoverDelay, enabled (global toggle), disableSiteToggle (per-site blacklist)
+  ├── Saves on: input (debounce 500ms, only if settingsLoaded + apiKeyDirty), change, blur, pagehide (guarded)
+  ├── Settings: groqApiKey, groqModel (7 options), targetLang, translationMode, hoverDelay, enabled, disableSiteToggle
+  ├── Import: validates types via sanitizeImportedSettings(); Export: includes all 6 defaults
+  ├── Model fallback: resets to default if stored model absent from catalog
   ├── Stats: words translated, cache hit rate %, top 3 source languages
-  ├── Actions: export settings to JSON file, import settings from JSON file (API key excluded)
-  └── Shows keyboard shortcut hint: "Shortcut: Ctrl+Shift+K"
+  └── Dynamic shortcut hint read from chrome.commands
 ```
 
 ---
@@ -155,9 +157,10 @@ Learning mode adds: `pronunciation`, `partOfSpeech`, `explanation`, `example`.
 
 ### API Parameters
 - `temperature: 0.0` — deterministic for caching
-- `max_tokens: 1024` (quick) / `2048` (learning) — generous to avoid truncation without response_format
+- `max_tokens: 1024` (quick) / `2048` (learning) — generous to avoid truncation
 - `stream: false`
-- **No `response_format`** — removed because not all Groq models support it (Qwen, etc.). Relies on prompt JSON instructions + `extractJson()` fallback.
+- **No `response_format`** — removed (not supported by Qwen). Relies on `extractJson()` with balanced brace extraction.
+- **Qwen models** get `reasoning_format: "hidden"` to suppress `<think>` blocks.
 
 ---
 
@@ -180,26 +183,28 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 ## Key Design Decisions
 
 1. **No backend** — SW calls Groq directly. No CORS issues (SW is exempt).
-2. **API key per user** — stored in chrome.storage.local, set via popup. Never hardcoded.
+2. **API key per user** — stored in chrome.storage.local, set via popup. Never hardcoded, never exported.
 3. **Popup writes storage directly** — avoids SW lifecycle dependency for saving settings.
-4. **Two-level cache** — L1 (Map, memory) for instant hits; L2 (chrome.storage) for persistence across sessions/tabs.
-5. **Retry on SW invalidation** — MV3 terminates SW aggressively. Content script retries `sendMessage` up to 6 times with exponential backoff (300ms base, max ~19s total wait).
-6. **Model selector in popup** — user picks from 7 Groq models, stored in `chrome.storage.local.groqModel`.
-7. **Toggle on/off** — popup has an Enabled switch. HoverDetector.setEnabled() stops all event processing instantly across all tabs.
-8. **Per-site disable** — blacklist stored as `disabledSites: string[]`. Content script checks `window.location.hostname` against the list. Site section hidden when global toggle is off.
+4. **Two-level cache** — L1 (Map, memory) for instant hits; L2 (chrome.storage) for persistence across sessions/tabs. Cache key includes `text|hash(sentence)|targetLang|mode|model` for proper disambiguation.
+5. **Retry on SW invalidation** — MV3 terminates SW aggressively. Content script retries up to 6x with exponential backoff (300ms base). Also retries on "message port closed".
+6. **Model selector in popup** — user picks from 7 Groq models. Stored model validated on popup open; reset to default if absent from catalog.
+7. **Toggle on/off** — popup has an Enabled switch. HoverDetector.setEnabled() stops all event processing.
+8. **Per-site disable** — blacklist stored as `disabledSites: string[]`. Uses top-level hostname via same-origin check + SW fallback for cross-origin iframes. Toast only in top frame.
 9. **Floating UI only** — no Tippy.js, no Popper. Minimal deps.
-10. **No `response_format`** — removed after discovering it causes 400 errors on unsupported models (Qwen) and intermittent 400s even on supported ones. Uses `extractJson()` with regex fallback instead.
-11. **High `max_tokens`** — 1024/2048 to prevent JSON truncation when model outputs preamble text without `response_format`.
+10. **No `response_format`** — removed (causes 400 on Qwen). Uses `extractJson()` with balanced brace extraction.
+11. **High `max_tokens`** — 1024/2048 to prevent JSON truncation when model outputs preamble.
 12. **Unified Quick+Context** — sentence context always sent (~30 extra tokens, huge disambiguation value).
-13. **Request timeout (30s)** — `fetchWithTimeout()` wrapper with `AbortController` prevents hanging on unresponsive API.
-14. **API-level retry** — `callGroqWithRetry()` handles 429 (Retry-After, 1 retry) and 5xx (exponential backoff, 2 retries). Non-retriable errors (AbortError/timeout, 400, 401) pass through immediately.
-15. **Keyboard shortcut** — `Ctrl+Shift+K` (`Cmd+Shift+K` on Mac) toggles HoverLingo on/off via `chrome.commands`. No need to open popup.
-16. **MutationObserver** — watches DOM mutations with 500ms debounce and threshold of 20 nodes. Resets tooltip on SPA navigations (Gmail, Twitter, YouTube).
-17. **Translation script validation** — `validateTranslationScript()` checks that translation characters match the target language's expected Unicode script. Reduces confidence to 0 on mismatch (e.g., Latin characters for Arabic target). Only catches cross-script errors; same-script language confusion (French vs Spanish) is not detectable.
-18. **Local usage stats** — counters tracked in content script (`wordsTranslated`, `cacheHits`, `topLanguages`), persisted to storage every 10 events. Displayed as cards in popup.
-19. **Export/Import settings** — JSON file with all settings (API key excluded). Enables backup and cross-device sync.
-20. **Accessibility** — tooltip uses `role="tooltip"` and `aria-live="polite"` for screen readers. RTL support via `dir="rtl"`.
-21. **Word highlight** — yellow overlay (`rgba(255, 230, 50, 0.35)`) appears behind the hovered word using `Range.getClientRects()` + `position: fixed` overlays. `pointer-events: none` prevents interaction interference.
+13. **Request timeout (30s)** — `fetchWithTimeout()` with AbortController.
+14. **API-level retry** — `callGroqWithRetry()`: 429 (1x, capped 10s Retry-After), 5xx (2x exp backoff).
+15. **Keyboard shortcut** — `Ctrl+Shift+K` toggles HoverLingo on/off via `chrome.commands`. Popup reads actual shortcut dynamically.
+16. **MutationObserver** — watches DOM with 500ms debounce, resets tooltip on SPA navigations.
+17. **Translation script validation** — validates Unicode script against target language, sets confidence to 0 on mismatch. Always runs (confidence may be absent from model).
+18. **Local usage stats** — delta-based counters flushed every 10 events and on pagehide, with read-modify-write merge.
+19. **Export/Import settings** — JSON file with all 6 settings (API key excluded). Import validates types; export includes defaults.
+20. **Accessibility** — tooltip uses `role="tooltip"` and `aria-live="polite"`. RTL via `dir="rtl"`.
+21. **Word highlight** — yellow overlay behind hovered word via `Range.getClientRects()` + `position: fixed`.
+22. **Error feedback** — tooltip shows descriptive error instead of disappearing (API key, timeout, generic).
+23. **Request generation guard** — stale responses from previous hovers are discarded; cache is populated regardless.
 
 ---
 
@@ -225,19 +230,35 @@ All data in `chrome.storage.local`:
 
 | Issue | Status | Fix |
 |-------|--------|-----|
-| Model 404 — wrong ID `qwen-3.6-27b` | Fixed | Correct ID is `qwen/qwen3.6-27b`. Format: `provider/model-name`. |
-| Groq 400 — response_format not supported | Fixed | Removed `response_format: json_object`. Not supported by Qwen, intermittent on GPT OSS. |
-| JSON truncated (max_tokens: 150) | Fixed | Bumped to 1024 (quick) / 2048 (learning). Without response_format, models may add preamble. |
-| JSON parse failures — model outputs non-JSON preamble | Fixed | Added `extractJson()` — tries `JSON.parse` first, then regex extraction of `{...}`. |
-| "Extension context invalidated" persistent | Fixed | Retry count 2→6 with exponential backoff (300ms base). Also proper reload process documented. |
-| Content script stale after build | Fixed | Must close + reopen tabs after reloading extension. Hard refresh (Ctrl+Shift+R) not enough. |
-| No on/off control | Fixed | Toggle switch in popup, wired to HoverDetector.setEnabled() via storage.onChanged. |
-| "API key not configured" | Fixed | Popup saves on input (debounced), change, blur, and pagehide. Writes directly to storage. |
-| Tooltip always in Arabic (ignoring target lang) | Fixed | System prompt includes target language name 3x + "Never output in any other language." |
-| No request timeout — hanging tooltip on slow API | Fixed | `fetchWithTimeout()` with 30s AbortController. Throws clear error on timeout. |
-| No retry on Groq errors (429, 5xx) | Fixed | `callGroqWithRetry()`: 429 → 1 retry with `Retry-After` header; 5xx → 2 retries exponential backoff. |
-| No keyboard shortcut to toggle | Fixed | `Ctrl+Shift+K` via `chrome.commands` API. SW listens and toggles `enabled` in storage. |
-| Tooltip floats on SPA navigation (Gmail, Twitter) | Fixed | `MutationObserver` in HoverDetector — resets state to idle on >20 DOM mutations, hiding tooltip. |
+| Model ID wrong (`qwen-3.6-27b`) | Fixed | Correct ID is `qwen/qwen3.6-27b` |
+| `response_format` not supported | Fixed | Removed; uses `extractJson()` with balanced brace extraction |
+| JSON truncated (max_tokens: 150) | Fixed | Bumped to 1024/2048 |
+| Non-JSON preamble from model | Fixed | `extractJson()` strips `<think>`, fences, balanced braces |
+| "Extension context invalidated" persistent | Fixed | Retry 6x with exp backoff; close+reopen tabs after reload |
+| Content script stale after build | Fixed | Must close + reopen tabs (hard refresh not enough) |
+| No on/off control | Fixed | Toggle switch in popup, wired via storage.onChanged |
+| "API key not configured" | Fixed | Popup saves on input/blur/change/pagehide (guarded) |
+| Tooltip ignores target language | Fixed | System prompt names target language 3x |
+| No request timeout | Fixed | `fetchWithTimeout()` with 30s AbortController |
+| No retry on Groq errors | Fixed | 429 (capped 10s) + 5xx (2x exp backoff) |
+| No keyboard shortcut | Fixed | `Ctrl+Shift+K` via `chrome.commands`; dynamic popup hint |
+| Tooltip floats on SPA navigation | Fixed | MutationObserver resets to idle on DOM changes |
+| Stale responses overwrite wrong tooltip | Fixed | Request generation counter; stale callbacks skipped |
+| SW errors silently hide tooltip | Fixed | Error message rendered in tooltip (API key/timeout/generic) |
+| Import has no type validation | Fixed | `sanitizeImportedSettings()` validates types and clamps ranges |
+| Selection hijacks all hovers | Fixed | Selection only applies when cursor is inside its bounding rect |
+| `pagehide`/blur wipes API key | Fixed | Guarded with `settingsLoaded` + `apiKeyDirty` flags |
+| 429 Retry-After unbounded | Fixed | Capped at 10s; "message port closed" added to retry allowlist |
+| Qwen `<think>` blocks break JSON | Fixed | `extractJson()` strips `<think>...</think>`; `reasoning_format: "hidden"` |
+| Cache key missing context + model | Fixed | Key = `text\|hash(sentence)\|lang\|mode\|model` |
+| Stats: read-modify-write race | Fixed | Delta-based flush every 10 events + pagehide; L2/dedup hits counted |
+| Per-site disable broken in iframes | Fixed | Top-level hostname via same-origin + SW GET_TAB_HOST fallback |
+| Model absent from catalog | Fixed | Popup resets to default on open if stored model not in select |
+| `confidence` absent from response | Fixed | Defaults to 0.5; script validation always runs |
+| Export empty on fresh install | Fixed | Export fuses defaults; round-trip from empty storage works |
+| Hardcoded shortcut hint | Fixed | Reads actual shortcut from `chrome.commands.getAll()` |
+| `StorageData.enabledSites` drift | Fixed | Schema corrected to `disabledSites`; added `usageStats` |
+| Dead "translating" state | Fixed | Removed from hover-detector type and `notifyTranslationComplete()` |
 
 ---
 
@@ -252,14 +273,14 @@ Then in Chrome:
 1. `chrome://extensions`
 2. Enable "Developer mode"
 3. "Load unpacked" → select `C:\repositorio\hoverlingo\dist`
-4. **After every rebuild:** click the reload icon on the HoverLingo card, then **close and reopen all tabs** (content scripts only inject on page load — hard refresh is NOT enough to get the new content script)
+4. **After every rebuild:** click the reload icon on the HoverLingo card, then **close and reopen all tabs** (content scripts only inject on page load — hard refresh is NOT enough)
 
 ---
 
 ## How to Test
 
 ```powershell
-npm test              # Run all 26 unit tests once
+npm test              # Run all 48 unit tests once
 npm run test:watch    # Watch mode
 ```
 
@@ -272,9 +293,9 @@ Tests use vitest with jsdom for DOM-dependent modules. No browser or extension e
 1. **Page console** (F12): content script runtime errors
 2. **SW console** (chrome://extensions → click "service worker" link on HoverLingo card): service worker runtime errors
 3. **Extension errors** (chrome://extensions → HoverLingo card → "Errors" button if present)
-4. **Verify chunk versions** — page console shows which content script chunk is loaded (`index.ts-XXXXXXXX.js`). Must match the build output. If it's stale, close and reopen the tab.
+4. **Verify chunk versions** — page console shows which content script chunk is loaded. Must match build output.
 
-Note: All `console.log/error/warn` statements have been removed from the production build. Re-add them temporarily if you need debug output.
+Note: All `console.log/error/warn` statements removed from production build.
 
 ---
 
@@ -289,30 +310,10 @@ Note: All `console.log/error/warn` statements have been removed from the product
 ## Completed Phases
 
 - [x] **Fase 1 — Polish:** Debug logs removed, minification enabled
-- [x] **Fase 2 — Robustez:** Timeout, retry (429/5xx), script validation, MutationObserver, site testing, memory leak test
-- [x] **Fase 3 — Pulido UX:** Text selection, per-site toggle, keyboard shortcut, skeleton loader, accessibility, dark mode, scroll/resize
+- [x] **Fase 2 — Robustez:** Timeout, retry (429/5xx), script validation, MutationObserver
+- [x] **Fase 3 — Pulido UX:** Text selection, per-site toggle, keyboard shortcut, skeleton, accessibility, dark mode
 - [x] **Fase 4 — Avanzadas:** Learning mode, usage stats, export/import
-- [x] **Tech Debt (partial):** Unit tests (26 tests, 4 modules), TypeScript strict mode
-
----
-
-## Pre-Production Review (2026-07-11)
-
-Before shipping to the Chrome Web Store, a full bug hunt was run: 4 parallel reviewer agents (content scripts, service worker, popup/manifest, cross-module integration) plus direct line-by-line verification of every finding against the source.
-
-**Result:** 16 verified, real bugs (3 HIGH, 8 MEDIUM, 5 LOW). Full details, severity ranking, and a ready-to-execute fix plan (16 atomic TDD tasks with exact code, tests, and commits) are in:
-
-> **`docs/superpowers/plans/2026-07-11-plan-correccion-bugs-produccion.md`**
-
-Run it with `superpowers:executing-plans` or `superpowers:subagent-driven-development` in a fresh session. Highlights of the 3 HIGH findings (see the plan for full list):
-
-1. **Stale responses overwrite the wrong tooltip** — no request-generation guard in `src/content/index.ts`; hovering word B while word A's request is in flight can render A's result over B, or wipe B's skeleton when A errors.
-2. **Every service-worker error is silenced** — missing API key, timeout, 4xx/5xx all just hide the tooltip with no message (`src/content/index.ts:210-216`), including on first install with no key configured.
-3. **Settings import has no type validation** (`src/popup/popup.ts:147-162`) — a crafted/corrupted JSON file (e.g. `disabledSites` as an object) permanently breaks the per-site toggle with no recovery path.
-
-Also flagged and planned: cache key missing sentence context + model (stale disambiguation for 24h), `qwen3-32b` reasoning `<think>` blocks breaking JSON parsing, per-site disable not covering cross-origin iframes, popup `pagehide` risk of wiping the API key, multi-tab stats race, and more — see the plan document for the complete table with file:line references.
-
-Verified as NOT bugs (don't re-investigate): TRANSLATE message contract, XSS surface (popup uses `textContent`, tooltip escapes via `esc()`), prototype pollution via import, manifest permissions.
+- [x] **Fase 5 — Bug Fix (2026-07-12):** 16 pre-production bugs fixed (3 high, 8 medium, 5 low). 22 new tests. See commits `0622b6a..bf83940`.
 
 ---
 
