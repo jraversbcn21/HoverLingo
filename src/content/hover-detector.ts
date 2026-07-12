@@ -2,7 +2,7 @@ export interface HoverCallback {
   (x: number, y: number): void;
 }
 
-export type HoverState = "idle" | "hovering" | "translating";
+export type HoverState = "idle" | "hovering";
 
 export class HoverDetector {
   private debounceMs: number;
@@ -136,12 +136,6 @@ export class HoverDetector {
     if (this.timer !== null) {
       clearTimeout(this.timer);
       this.timer = null;
-    }
-  }
-
-  notifyTranslationComplete(): void {
-    if (this.state === "translating") {
-      this.setState("hovering");
     }
   }
 
