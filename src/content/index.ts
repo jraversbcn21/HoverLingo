@@ -40,32 +40,55 @@ interface UsageStats {
   topLanguages: Record<string, number>;
 }
 
-let stats: UsageStats = { wordsTranslated: 0, cacheHits: 0, topLanguages: {} };
-let statsWriteCount = 0;
+let pendingStats: UsageStats = { wordsTranslated: 0, cacheHits: 0, topLanguages: {} };
+let pendingStatsCount = 0;
 const STATS_PERSIST_INTERVAL = 10;
 
-function loadStats(stored: UsageStats | undefined): void {
-  stats = stored || { wordsTranslated: 0, cacheHits: 0, topLanguages: {} };
-}
-
 function recordCacheHit(): void {
-  stats.cacheHits++;
-  stats.wordsTranslated++;
-  statsWriteCount++;
-  if (statsWriteCount >= STATS_PERSIST_INTERVAL) persistStats();
+  pendingStats.cacheHits++;
+  pendingStats.wordsTranslated++;
+  maybeFlushStats();
 }
 
 function recordTranslation(sourceLang: string): void {
-  stats.wordsTranslated++;
-  stats.topLanguages[sourceLang] = (stats.topLanguages[sourceLang] || 0) + 1;
-  statsWriteCount++;
-  if (statsWriteCount >= STATS_PERSIST_INTERVAL) persistStats();
+  pendingStats.wordsTranslated++;
+  pendingStats.topLanguages[sourceLang] = (pendingStats.topLanguages[sourceLang] || 0) + 1;
+  maybeFlushStats();
 }
 
-function persistStats(): void {
-  statsWriteCount = 0;
-  chrome.storage.local.set({ usageStats: stats });
+function maybeFlushStats(): void {
+  pendingStatsCount++;
+  if (pendingStatsCount >= STATS_PERSIST_INTERVAL) {
+    void flushStats();
+  }
 }
+
+async function flushStats(): Promise<void> {
+  if (pendingStats.wordsTranslated === 0 && pendingStats.cacheHits === 0) return;
+  const deltas = pendingStats;
+  pendingStats = { wordsTranslated: 0, cacheHits: 0, topLanguages: {} };
+  pendingStatsCount = 0;
+  try {
+    const data = await chrome.storage.local.get("usageStats");
+    const stored = data.usageStats as UsageStats | undefined;
+    const merged: UsageStats =
+      stored && typeof stored.wordsTranslated === "number"
+        ? { ...stored, topLanguages: stored.topLanguages || {} }
+        : { wordsTranslated: 0, cacheHits: 0, topLanguages: {} };
+    merged.wordsTranslated += deltas.wordsTranslated;
+    merged.cacheHits += deltas.cacheHits;
+    for (const [lang, count] of Object.entries(deltas.topLanguages)) {
+      merged.topLanguages[lang] = (merged.topLanguages[lang] || 0) + count;
+    }
+    await chrome.storage.local.set({ usageStats: merged });
+  } catch {
+    // storage inaccessible (invalidated context): discard these deltas
+  }
+}
+
+window.addEventListener("pagehide", () => {
+  void flushStats();
+});
 
 function showToast(message: string): void {
   if (currentToast) {
@@ -101,7 +124,6 @@ async function loadSettings(): Promise<void> {
       "enabled",
       "disabledSites",
       "groqModel",
-      "usageStats",
     ]);
     currentTargetLang = data.targetLang || "es";
     currentMode = data.translationMode || "quick";
@@ -111,8 +133,6 @@ async function loadSettings(): Promise<void> {
 
     const disabledSites: string[] = Array.isArray(data.disabledSites) ? data.disabledSites : [];
     currentSiteDisabled = disabledSites.includes(window.location.hostname);
-
-    loadStats(data.usageStats);
 
     hoverDetector.setDebounceMs(debounceMs);
     updateDetectorEnabled();
@@ -194,6 +214,7 @@ function onHoverReady(x: number, y: number): void {
 
     existingPromise
       .then((result) => {
+        recordCacheHit();
         if (gen !== requestGeneration) return;
         renderer.updateContent(extracted.word, result);
       })
@@ -209,7 +230,7 @@ function onHoverReady(x: number, y: number): void {
 
   renderer.show(x, y, extracted.word, {} as TranslationResponse, true);
 
-  const promise = requestTranslation(
+  const outcomePromise = requestTranslation(
     extracted.word,
     extracted.sentence,
     currentTargetLang,
@@ -217,15 +238,22 @@ function onHoverReady(x: number, y: number): void {
     currentAbortController.signal
   );
 
-  l1Cache.setPending(cacheKey, promise);
+  const resultPromise = outcomePromise.then((o) => o.result);
+  resultPromise.catch(() => {
+    // evita "unhandled rejection" cuando nadie está suscrito al pending
+  });
+  l1Cache.setPending(cacheKey, resultPromise);
 
-  promise
-    .then((result) => {
+  outcomePromise
+    .then(({ result, cached }) => {
       l1Cache.set(cacheKey, result);
-      recordTranslation(result.sourceLanguage);
+      if (cached) {
+        recordCacheHit();
+      } else {
+        recordTranslation(result.sourceLanguage);
+      }
       if (gen !== requestGeneration) return;
       renderer.updateContent(extracted.word, result);
-      hoverDetector.notifyTranslationComplete();
     })
     .catch((err) => {
       if (err instanceof DOMException && err.name === "AbortError") {
@@ -252,53 +280,63 @@ function abortCurrentRequest(): void {
   }
 }
 
+interface TranslationOutcome {
+  result: TranslationResponse;
+  cached: boolean;
+}
+
 async function requestTranslation(
   text: string,
   sentence: string,
   targetLang: string,
   mode: "quick" | "learning",
   signal: AbortSignal
-): Promise<TranslationResponse> {
-  const sendWithRetry = async (attempt: number): Promise<TranslationResponse> => {
+): Promise<TranslationOutcome> {
+  const sendWithRetry = async (attempt: number): Promise<TranslationOutcome> => {
     if (signal.aborted) {
       throw new DOMException("Aborted", "AbortError");
     }
 
     return new Promise((resolve, reject) => {
-      const handler = (message: { success: boolean; data?: TranslationResponse; error?: string }) => {
+      const handler = (message: {
+        success: boolean;
+        data?: TranslationResponse;
+        error?: string;
+        cached?: boolean;
+      }) => {
         if (message.success && message.data) {
-          resolve(message.data);
+          resolve({ result: message.data, cached: message.cached === true });
         } else {
           reject(new Error(message.error || "Translation failed"));
         }
       };
 
-        chrome.runtime.sendMessage(
-          {
-            type: "TRANSLATE",
-            payload: { text, sentence, targetLang, mode },
-          },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              const msg = chrome.runtime.lastError.message || "";
-              if (
-                attempt < 6 &&
-                (msg.includes("Extension context invalidated") ||
-                  msg.includes("receiving end does not exist") ||
-                  msg.includes("message port closed"))
-              ) {
-                const delay = 300 * Math.pow(2, attempt);
-                setTimeout(() => {
-                  sendWithRetry(attempt + 1).then(resolve).catch(reject);
-                }, delay);
-                return;
-              }
-              reject(new Error(msg));
+      chrome.runtime.sendMessage(
+        {
+          type: "TRANSLATE",
+          payload: { text, sentence, targetLang, mode },
+        },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            const msg = chrome.runtime.lastError.message || "";
+            if (
+              attempt < 6 &&
+              (msg.includes("Extension context invalidated") ||
+                msg.includes("receiving end does not exist") ||
+                msg.includes("message port closed"))
+            ) {
+              const delay = 300 * Math.pow(2, attempt);
+              setTimeout(() => {
+                sendWithRetry(attempt + 1).then(resolve).catch(reject);
+              }, delay);
               return;
             }
-            handler(response);
+            reject(new Error(msg));
+            return;
           }
-        );
+          handler(response);
+        }
+      );
     });
   };
 
