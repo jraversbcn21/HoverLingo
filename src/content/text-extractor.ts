@@ -104,14 +104,31 @@ function extractSentence(text: string, wordStart: number, wordEnd: number): stri
   return sentence;
 }
 
+function isPointInSelection(selection: Selection, x: number, y: number): boolean {
+  for (let i = 0; i < selection.rangeCount; i++) {
+    const rects = selection.getRangeAt(i).getClientRects();
+    for (let j = 0; j < rects.length; j++) {
+      const r = rects[j];
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export function extractTextAt(x: number, y: number): ExtractedText | null {
   const selection = window.getSelection();
-  if (selection && !selection.isCollapsed && selection.toString().trim().length > 0) {
-    const selectedText = selection.toString().trim();
-    const sentence = selectedText.length > 500 ? selectedText.slice(0, 500) : selectedText;
+  if (
+    selection &&
+    !selection.isCollapsed &&
+    selection.toString().trim().length > 0 &&
+    isPointInSelection(selection, x, y)
+  ) {
+    const selectedText = selection.toString().trim().slice(0, 500);
     return {
       word: selectedText,
-      sentence,
+      sentence: selectedText,
       isSelection: true,
     };
   }
