@@ -122,6 +122,15 @@
   100% { opacity: 0.2; }
 }
 
+[data-hl-tooltip] .hl-error {
+  font-size: 13px;
+  color: #c0392b;
+}
+
+[data-hl-tooltip].hl-dark .hl-error {
+  color: #ff8a80;
+}
+
 [data-hl-tooltip][dir="rtl"] {
   text-align: right;
   direction: rtl;

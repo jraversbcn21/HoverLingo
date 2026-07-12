@@ -87,6 +87,14 @@ export class TooltipRenderer {
     }
   }
 
+  updateError(originalText: string, message: string): void {
+    if (!this.tooltip) return;
+    this.tooltip.innerHTML = `
+      <div class="hl-original">"${esc(originalText)}"</div>
+      <div class="hl-error">${esc(message)}</div>
+    `;
+  }
+
   hide(): void {
     if (this.tooltip) {
       this.tooltip.classList.remove("hl-visible");

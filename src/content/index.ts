@@ -184,8 +184,8 @@ function onHoverReady(x: number, y: number): void {
       })
       .catch(() => {
         if (gen !== requestGeneration) return;
-        renderer.hide();
         wordHighlight.hide();
+        renderer.updateError(extracted.word, "No se pudo traducir. Inténtalo de nuevo.");
       });
     return;
   }
@@ -217,8 +217,15 @@ function onHoverReady(x: number, y: number): void {
         return;
       }
       if (gen !== requestGeneration) return;
-      renderer.hide();
       wordHighlight.hide();
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("API key not configured")) {
+        renderer.updateError(extracted.word, "Configura tu API key de Groq en el popup de HoverLingo");
+      } else if (msg.includes("timed out")) {
+        renderer.updateError(extracted.word, "La traducción tardó demasiado. Inténtalo de nuevo.");
+      } else {
+        renderer.updateError(extracted.word, "No se pudo traducir. Inténtalo de nuevo.");
+      }
     });
 }
 
