@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** Post-Fase 4 bug fix complete (2026-07-12). 16 pre-production bugs fixed. 48 unit tests. Ready for Chrome Web Store submission.
+**Current state:** Post-Fase 4 bug fix complete (2026-07-12). 16 pre-production bugs fixed + 2 found during manual QA (Quick mode token truncation, Learning explanation language). 49 unit tests. Ready for Chrome Web Store submission.
 
 ---
 
@@ -58,7 +58,7 @@ hoverlingo/
 │   └── __tests__/
 │       ├── cache-l1.test.ts              # 8 tests: key-based API, lang/mode/context isolation, TTL, LRU, dedup
 │       ├── cache-l2.test.ts              # 4 tests: get/set, eviction on overflow, key prefix isolation
-│       ├── prompts.test.ts               # 10 tests: system prompt, user prompt (quick + learning), language fallback
+│       ├── prompts.test.ts               # 11 tests: system prompt, user prompt (quick + learning), language fallback, explanation language
 │       ├── text-extractor.test.ts        # 6 tests: selection hit test, truncation, caretRangeFromPoint absence
 │       ├── cache-key.test.ts             # 5 tests: determinism, context/model/lang/mode isolation, empty hash
 │       ├── extract-json.test.ts          # 8 tests: think blocks, fences, nested braces, trailing text, truncated
@@ -101,7 +101,7 @@ Service Worker (service-worker.ts)
   │           ├── Read API key + model from chrome.storage.local
   │           ├── Build prompts: buildSystemPrompt(targetLang) + buildUserPrompt(...)
   │           ├── POST https://api.groq.com/openai/v1/chat/completions
-  │           │     { model, temperature: 0.0, max_tokens: 1024/2048, stream: false }
+  │           │     { model, temperature: 0.0, max_tokens: 2048, stream: false }
   │           │     Qwen models: reasoning_format = "hidden"
   │           │     └── Timeout 30s (AbortController) + retry 429 (1x, capped 10s Retry-After) + retry 5xx (2x)
   │           ├── extractJson() with <think> strip + balanced brace extraction
@@ -157,7 +157,7 @@ Learning mode adds: `pronunciation`, `partOfSpeech`, `explanation`, `example`.
 
 ### API Parameters
 - `temperature: 0.0` — deterministic for caching
-- `max_tokens: 1024` (quick) / `2048` (learning) — generous to avoid truncation
+- `max_tokens: 2048` (both modes) — reasoning models spend part of the budget on hidden `<think>` reasoning; 1024 was truncating Quick-mode responses before any visible content was emitted
 - `stream: false`
 - **No `response_format`** — removed (not supported by Qwen). Relies on `extractJson()` with balanced brace extraction.
 - **Qwen models** get `reasoning_format: "hidden"` to suppress `<think>` blocks.
@@ -192,7 +192,7 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 8. **Per-site disable** — blacklist stored as `disabledSites: string[]`. Uses top-level hostname via same-origin check + SW fallback for cross-origin iframes. Toast only in top frame.
 9. **Floating UI only** — no Tippy.js, no Popper. Minimal deps.
 10. **No `response_format`** — removed (causes 400 on Qwen). Uses `extractJson()` with balanced brace extraction.
-11. **High `max_tokens`** — 1024/2048 to prevent JSON truncation when model outputs preamble.
+11. **High `max_tokens`** — 2048 for both modes to prevent JSON truncation; reasoning models (Qwen) consume part of the budget on hidden reasoning even with `reasoning_format: "hidden"`, so Quick mode's lower 1024 was truncating responses before any visible content.
 12. **Unified Quick+Context** — sentence context always sent (~30 extra tokens, huge disambiguation value).
 13. **Request timeout (30s)** — `fetchWithTimeout()` with AbortController.
 14. **API-level retry** — `callGroqWithRetry()`: 429 (1x, capped 10s Retry-After), 5xx (2x exp backoff).
@@ -259,6 +259,8 @@ All data in `chrome.storage.local`:
 | Hardcoded shortcut hint | Fixed | Reads actual shortcut from `chrome.commands.getAll()` |
 | `StorageData.enabledSites` drift | Fixed | Schema corrected to `disabledSites`; added `usageStats` |
 | Dead "translating" state | Fixed | Removed from hover-detector type and `notifyTranslationComplete()` |
+| Quick mode always fails ("Empty response"/truncated JSON) | Fixed | `max_tokens` was 1024; reasoning model's hidden `<think>` spent the whole budget before emitting content (confirmed via `finish_reason: "length"`). Raised to 2048 for both modes. |
+| Learning mode explanation returned in English despite target language | Fixed | Prompt only required `translation` to be in the target language; added explicit rule requiring `explanation` in `${langName}` too |
 
 ---
 
@@ -280,7 +282,7 @@ Then in Chrome:
 ## How to Test
 
 ```powershell
-npm test              # Run all 48 unit tests once
+npm test              # Run all 49 unit tests once
 npm run test:watch    # Watch mode
 ```
 
@@ -314,6 +316,7 @@ Note: All `console.log/error/warn` statements removed from production build.
 - [x] **Fase 3 — Pulido UX:** Text selection, per-site toggle, keyboard shortcut, skeleton, accessibility, dark mode
 - [x] **Fase 4 — Avanzadas:** Learning mode, usage stats, export/import
 - [x] **Fase 5 — Bug Fix (2026-07-12):** 16 pre-production bugs fixed (3 high, 8 medium, 5 low). 22 new tests. See commits `0622b6a..bf83940`.
+- [x] **Fase 6 — Manual QA Fix (2026-07-12):** 2 bugs found during manual verification of the Fase 5 build: Quick mode `max_tokens` truncation and Learning mode explanation language. 1 new test.
 
 ---
 
