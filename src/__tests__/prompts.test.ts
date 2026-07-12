@@ -68,5 +68,10 @@ describe("Prompts", () => {
       const prompt = buildUserPrompt("hello", "Hello.", "xx", "learning");
       expect(prompt).toContain("Translate the following word into xx");
     });
+
+    it("requires explanation to be written in the target language", () => {
+      const prompt = buildUserPrompt("bank", "The bank is near.", "es", "learning");
+      expect(prompt).toContain('"explanation" MUST be written in Spanish');
+    });
   });
 });

@@ -34,6 +34,7 @@ The translation must be in ${langName}. Return JSON:
 
 RULES:
 - "translation" MUST be in ${langName}. Never return the original word.
+- "explanation" MUST be written in ${langName}, not English.
 - "direction": "rtl" only if the TRANSLATION text uses Arabic, Hebrew, Persian, or Urdu script. Otherwise "ltr".
 - "confidence": 0.0 to 1.0. Lower if the context doesn't help.
 - "sourceLanguage": ISO 639-1 code of the WORD's original language.`;
