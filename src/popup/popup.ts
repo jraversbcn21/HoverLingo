@@ -110,8 +110,19 @@ async function loadSettings(): Promise<void> {
 
   apiKeyInput.value = data.groqApiKey || "";
   enabledToggle.checked = data.enabled !== false;
-  modelSelect.value = data.groqModel || GROQ_MODEL;
-  targetLangSelect.value = data.targetLang || "es";
+  const storedModel: string = data.groqModel || GROQ_MODEL;
+  modelSelect.value = storedModel;
+  if (modelSelect.value !== storedModel) {
+    modelSelect.value = GROQ_MODEL;
+    await chrome.storage.local.set({ groqModel: GROQ_MODEL });
+  }
+
+  const storedLang: string = data.targetLang || "es";
+  targetLangSelect.value = storedLang;
+  if (targetLangSelect.value !== storedLang) {
+    targetLangSelect.value = "es";
+    await chrome.storage.local.set({ targetLang: "es" });
+  }
   modeSelect.value = data.translationMode || "quick";
   hoverDelayInput.value = String(data.hoverDelay || 300);
   hoverDelayLabel.textContent = `${data.hoverDelay || 300}ms`;
@@ -129,7 +140,16 @@ function exportSettings(): void {
     "enabled",
     "disabledSites",
   ]).then((data) => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const full = {
+      groqModel: GROQ_MODEL,
+      targetLang: "es",
+      translationMode: "quick",
+      hoverDelay: 300,
+      enabled: true,
+      disabledSites: [] as string[],
+      ...data,
+    };
+    const blob = new Blob([JSON.stringify(full, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -268,4 +288,9 @@ loadSiteSettings();
 loadSettings();
 loadStats();
 
-shortcutHint.textContent = "Shortcut: Ctrl+Shift+K";
+chrome.commands.getAll((commands) => {
+  const cmd = commands.find((c) => c.name === "toggle-hoverlingo");
+  shortcutHint.textContent = cmd && cmd.shortcut
+    ? `Shortcut: ${cmd.shortcut}`
+    : "Shortcut: sin asignar (chrome://extensions/shortcuts)";
+});
