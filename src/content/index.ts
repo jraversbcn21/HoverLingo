@@ -268,7 +268,12 @@ async function requestTranslation(
           (response) => {
             if (chrome.runtime.lastError) {
               const msg = chrome.runtime.lastError.message || "";
-              if (attempt < 6 && (msg.includes("Extension context invalidated") || msg.includes("receiving end does not exist"))) {
+              if (
+                attempt < 6 &&
+                (msg.includes("Extension context invalidated") ||
+                  msg.includes("receiving end does not exist") ||
+                  msg.includes("message port closed"))
+              ) {
                 const delay = 300 * Math.pow(2, attempt);
                 setTimeout(() => {
                   sendWithRetry(attempt + 1).then(resolve).catch(reject);

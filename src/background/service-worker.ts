@@ -265,7 +265,7 @@ async function callGroqWithRetry(
 
       if (err.status === 429) {
         if (attempt === 0) {
-          const waitMs = parseRetryAfter(err.headers) || 5000;
+          const waitMs = Math.min(parseRetryAfter(err.headers) ?? 5000, 10000);
           await sleep(waitMs);
           continue;
         }
