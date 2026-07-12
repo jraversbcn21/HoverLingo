@@ -6,6 +6,7 @@ import type { TranslationResponse } from "./cache-l1";
 import { wordHighlight } from "./word-highlight";
 
 let currentAbortController: AbortController | null = null;
+let requestGeneration = 0;
 let currentTargetLang = "es";
 let currentMode: "quick" | "learning" = "quick";
 let currentEnabled = true;
@@ -148,6 +149,7 @@ function onStateChange(state: HoverState): void {
 
 function onHoverReady(x: number, y: number): void {
   abortCurrentRequest();
+  const gen = requestGeneration;
 
   const extracted = extractTextAt(x, y);
   if (!extracted || !extracted.word) {
@@ -177,11 +179,13 @@ function onHoverReady(x: number, y: number): void {
 
     existingPromise
       .then((result) => {
+        if (gen !== requestGeneration) return;
         renderer.updateContent(extracted.word, result);
       })
       .catch(() => {
+        if (gen !== requestGeneration) return;
         renderer.hide();
-      wordHighlight.hide();
+        wordHighlight.hide();
       });
     return;
   }
@@ -203,20 +207,23 @@ function onHoverReady(x: number, y: number): void {
   promise
     .then((result) => {
       l1Cache.set(extracted.word, currentTargetLang, currentMode, result);
+      recordTranslation(result.sourceLanguage);
+      if (gen !== requestGeneration) return;
       renderer.updateContent(extracted.word, result);
       hoverDetector.notifyTranslationComplete();
-      recordTranslation(result.sourceLanguage);
     })
     .catch((err) => {
       if (err instanceof DOMException && err.name === "AbortError") {
         return;
       }
+      if (gen !== requestGeneration) return;
       renderer.hide();
       wordHighlight.hide();
     });
 }
 
 function abortCurrentRequest(): void {
+  requestGeneration++;
   if (currentAbortController) {
     currentAbortController.abort();
     currentAbortController = null;
