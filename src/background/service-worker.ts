@@ -227,6 +227,10 @@ async function callGroq(
     throw new Error("Invalid response format from Groq");
   }
 
+  if (typeof parsed.confidence !== "number" || Number.isNaN(parsed.confidence)) {
+    parsed.confidence = 0.5;
+  }
+
   return parsed;
 }
 
@@ -319,7 +323,7 @@ async function handleTranslate(
       model
     );
 
-    if (result.confidence > 0 && !validateTranslationScript(result.translation, targetLang)) {
+    if (!validateTranslationScript(result.translation, targetLang)) {
       result.confidence = 0;
     }
 
