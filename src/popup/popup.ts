@@ -1,5 +1,6 @@
 import { TARGET_LANGUAGES } from "../shared/types";
 import { AVAILABLE_MODELS, GROQ_MODEL } from "../shared/constants";
+import { sanitizeImportedSettings } from "../shared/settings-validation";
 
 const apiKeyInput = document.getElementById("groqApiKey") as HTMLInputElement;
 const enabledToggle = document.getElementById("enabledToggle") as HTMLInputElement;
@@ -43,7 +44,7 @@ async function loadSiteSettings(): Promise<void> {
   disableSiteLabel.textContent = `Disable on ${currentSiteHostname}`;
 
   const data = await chrome.storage.local.get("disabledSites");
-  const disabledSites: string[] = data.disabledSites || [];
+  const disabledSites: string[] = Array.isArray(data.disabledSites) ? data.disabledSites : [];
   disableSiteToggle.checked = disabledSites.includes(currentSiteHostname);
 }
 
@@ -148,11 +149,7 @@ function importSettings(): void {
       const text = await file.text();
       const data = JSON.parse(text);
 
-      const allowedKeys = ["groqModel", "targetLang", "translationMode", "hoverDelay", "enabled", "disabledSites"];
-      const toSave: Record<string, unknown> = {};
-      for (const key of allowedKeys) {
-        if (key in data) toSave[key] = data[key];
-      }
+      const toSave = sanitizeImportedSettings(data);
 
       if (Object.keys(toSave).length === 0) {
         showStatus("Invalid settings file", "error");

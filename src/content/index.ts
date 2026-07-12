@@ -101,10 +101,10 @@ async function loadSettings(): Promise<void> {
     ]);
     currentTargetLang = data.targetLang || "es";
     currentMode = data.translationMode || "quick";
-    debounceMs = data.hoverDelay || 300;
+    debounceMs = typeof data.hoverDelay === "number" ? data.hoverDelay : 300;
     currentEnabled = data.enabled !== false;
 
-    const disabledSites: string[] = data.disabledSites || [];
+    const disabledSites: string[] = Array.isArray(data.disabledSites) ? data.disabledSites : [];
     currentSiteDisabled = disabledSites.includes(window.location.hostname);
 
     loadStats(data.usageStats);
@@ -124,7 +124,8 @@ chrome.storage.onChanged.addListener((changes) => {
     currentMode = changes.translationMode.newValue;
   }
   if (changes.hoverDelay) {
-    debounceMs = changes.hoverDelay.newValue;
+    const nv = changes.hoverDelay.newValue;
+    debounceMs = typeof nv === "number" ? nv : 300;
     hoverDetector.setDebounceMs(debounceMs);
   }
   if (changes.enabled) {
@@ -133,7 +134,8 @@ chrome.storage.onChanged.addListener((changes) => {
     showToast(currentEnabled ? "HoverLingo: Activado" : "HoverLingo: Desactivado");
   }
   if (changes.disabledSites) {
-    const disabledSites: string[] = changes.disabledSites.newValue || [];
+    const nv = changes.disabledSites.newValue;
+    const disabledSites: string[] = Array.isArray(nv) ? nv : [];
     currentSiteDisabled = disabledSites.includes(window.location.hostname);
     updateDetectorEnabled();
   }
