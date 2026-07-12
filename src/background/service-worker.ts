@@ -2,6 +2,7 @@ import type { TranslationResponse } from "../shared/types";
 import { GROQ_API_URL, GROQ_MODEL, DEFAULTS } from "../shared/constants";
 import { buildSystemPrompt, buildUserPrompt } from "../shared/prompts";
 import { l2Cache } from "./cache-l2";
+import { extractJson } from "../shared/extract-json";
 
 const LANGUAGE_SCRIPT: Record<string, string> = {
   es: "latin", en: "latin", fr: "latin", de: "latin", it: "latin", pt: "latin",
@@ -172,6 +173,20 @@ async function callGroq(
   const systemPrompt = buildSystemPrompt(targetLang);
   const userPrompt = buildUserPrompt(word, sentence, targetLang, mode);
 
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.0,
+    max_tokens: mode === "learning" ? 2048 : 1024,
+    stream: false,
+  };
+  if (model.startsWith("qwen/")) {
+    requestBody.reasoning_format = "hidden";
+  }
+
   const res = await fetchWithTimeout(
     GROQ_API_URL,
     {
@@ -180,16 +195,7 @@ async function callGroq(
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.0,
-        max_tokens: mode === "learning" ? 2048 : 1024,
-        stream: false,
-      }),
+      body: JSON.stringify(requestBody),
     },
     30000
   );
@@ -221,22 +227,6 @@ async function callGroq(
   }
 
   return parsed;
-}
-
-function extractJson<T>(content: string): T | null {
-  try {
-    return JSON.parse(content) as T;
-  } catch {
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      try {
-        return JSON.parse(match[0]) as T;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
