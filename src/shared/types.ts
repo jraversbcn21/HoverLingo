@@ -27,9 +27,14 @@ export interface StorageData {
   groqModel?: string;
   targetLang?: string;
   translationMode?: TranslationMode;
-  enabledSites?: string[];
+  disabledSites?: string[];
   hoverDelay?: number;
   enabled?: boolean;
+  usageStats?: {
+    wordsTranslated: number;
+    cacheHits: number;
+    topLanguages: Record<string, number>;
+  };
 }
 
 export type TranslationMode = "quick" | "learning";
