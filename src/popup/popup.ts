@@ -22,6 +22,8 @@ const importBtn = document.getElementById("importBtn") as HTMLButtonElement;
 
 let apiKeyDebounce: ReturnType<typeof setTimeout> | null = null;
 let currentSiteHostname = "";
+let settingsLoaded = false;
+let apiKeyDirty = false;
 
 async function getCurrentSite(): Promise<string> {
   try {
@@ -115,6 +117,7 @@ async function loadSettings(): Promise<void> {
   hoverDelayLabel.textContent = `${data.hoverDelay || 300}ms`;
 
   disableSiteSection.style.display = data.enabled !== false ? "" : "none";
+  settingsLoaded = true;
 }
 
 function exportSettings(): void {
@@ -173,6 +176,7 @@ async function saveSetting(key: string, value: unknown): Promise<void> {
 }
 
 async function saveApiKey(): Promise<void> {
+  if (!settingsLoaded || !apiKeyDirty) return;
   const value = apiKeyInput.value.trim();
   await chrome.storage.local.set({ groqApiKey: value });
   showStatus("Saved", "success");
@@ -188,6 +192,7 @@ function showStatus(message: string, type: "success" | "error"): void {
 }
 
 apiKeyInput.addEventListener("input", () => {
+  apiKeyDirty = true;
   if (apiKeyDebounce) clearTimeout(apiKeyDebounce);
   apiKeyDebounce = setTimeout(saveApiKey, 500);
 });
@@ -249,7 +254,9 @@ disableSiteToggle.addEventListener("change", async () => {
 
 window.addEventListener("pagehide", () => {
   if (apiKeyDebounce) clearTimeout(apiKeyDebounce);
-  chrome.storage.local.set({ groqApiKey: apiKeyInput.value.trim() });
+  if (settingsLoaded && apiKeyDirty) {
+    chrome.storage.local.set({ groqApiKey: apiKeyInput.value.trim() });
+  }
 });
 
 exportBtn.addEventListener("click", exportSettings);
