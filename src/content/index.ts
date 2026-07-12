@@ -28,9 +28,33 @@ function updateDetectorEnabled(): void {
   hoverDetector.setEnabled(currentEnabled && !currentSiteDisabled);
 }
 
-loadSettings().then(() => {
-  hoverDetector.init();
-});
+let effectiveHostname = window.location.hostname;
+
+async function resolveEffectiveHostname(): Promise<void> {
+  if (window === window.top) return;
+  try {
+    effectiveHostname = window.top!.location.hostname;
+    return;
+  } catch {
+    // cross-origin: se lo pedimos al service worker
+  }
+  try {
+    const resp = (await chrome.runtime.sendMessage({ type: "GET_TAB_HOST" })) as
+      | { host?: string }
+      | undefined;
+    if (resp && typeof resp.host === "string" && resp.host) {
+      effectiveHostname = resp.host;
+    }
+  } catch {
+    // SW no disponible: conservamos el hostname del frame
+  }
+}
+
+resolveEffectiveHostname()
+  .then(loadSettings)
+  .then(() => {
+    hoverDetector.init();
+  });
 
 let currentToast: HTMLDivElement | null = null;
 
@@ -132,7 +156,7 @@ async function loadSettings(): Promise<void> {
     currentEnabled = data.enabled !== false;
 
     const disabledSites: string[] = Array.isArray(data.disabledSites) ? data.disabledSites : [];
-    currentSiteDisabled = disabledSites.includes(window.location.hostname);
+    currentSiteDisabled = disabledSites.includes(effectiveHostname);
 
     hoverDetector.setDebounceMs(debounceMs);
     updateDetectorEnabled();
@@ -160,12 +184,14 @@ chrome.storage.onChanged.addListener((changes) => {
   if (changes.enabled) {
     currentEnabled = changes.enabled.newValue;
     updateDetectorEnabled();
-    showToast(currentEnabled ? "HoverLingo: Activado" : "HoverLingo: Desactivado");
+    if (window === window.top) {
+      showToast(currentEnabled ? "HoverLingo: Activado" : "HoverLingo: Desactivado");
+    }
   }
   if (changes.disabledSites) {
     const nv = changes.disabledSites.newValue;
     const disabledSites: string[] = Array.isArray(nv) ? nv : [];
-    currentSiteDisabled = disabledSites.includes(window.location.hostname);
+    currentSiteDisabled = disabledSites.includes(effectiveHostname);
     updateDetectorEnabled();
   }
 });

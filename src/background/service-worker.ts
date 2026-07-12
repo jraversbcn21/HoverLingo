@@ -230,10 +230,22 @@ async function callGroq(
   return parsed;
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "TRANSLATE") {
     handleTranslate(message.payload, sendResponse);
     return true;
+  }
+  if (message.type === "GET_TAB_HOST") {
+    let host = "";
+    try {
+      if (sender.tab?.url) {
+        host = new URL(sender.tab.url).hostname;
+      }
+    } catch {
+      // URL no parseable: devolvemos ""
+    }
+    sendResponse({ host });
+    return false;
   }
   return false;
 });
