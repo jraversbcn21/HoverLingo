@@ -181,7 +181,7 @@ async function callGroq(
       { role: "user", content: userPrompt },
     ],
     temperature: 0.0,
-    max_tokens: mode === "learning" ? 2048 : 1024,
+    max_tokens: 2048,
     stream: false,
   };
   if (model.startsWith("qwen/")) {
