@@ -3,6 +3,7 @@ import { GROQ_API_URL, GROQ_MODEL, DEFAULTS } from "../shared/constants";
 import { buildSystemPrompt, buildUserPrompt } from "../shared/prompts";
 import { l2Cache } from "./cache-l2";
 import { extractJson } from "../shared/extract-json";
+import { buildCacheKey } from "../shared/cache-key";
 
 const LANGUAGE_SCRIPT: Record<string, string> = {
   es: "latin", en: "latin", fr: "latin", de: "latin", it: "latin", pt: "latin",
@@ -282,7 +283,8 @@ async function handleTranslate(
   try {
     const targetLang = request.targetLang || (await getTargetLang());
     const mode = request.mode || (await getMode());
-    const cacheKey = `${request.text}|${targetLang}|${mode}`;
+    const model = await getModel();
+    const cacheKey = buildCacheKey(request.text, request.sentence || "", targetLang, mode, model);
 
     const cached = await l2Cache.get(cacheKey);
     if (cached) {
@@ -296,7 +298,6 @@ async function handleTranslate(
       return;
     }
 
-    const model = await getModel();
     const result = await callGroqWithRetry(
       request.text,
       request.sentence,

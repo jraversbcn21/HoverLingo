@@ -4,6 +4,8 @@ import { TooltipRenderer } from "./tooltip-renderer";
 import { l1Cache } from "./cache-l1";
 import type { TranslationResponse } from "./cache-l1";
 import { wordHighlight } from "./word-highlight";
+import { buildCacheKey } from "../shared/cache-key";
+import { GROQ_MODEL } from "../shared/constants";
 
 let currentAbortController: AbortController | null = null;
 let requestGeneration = 0;
@@ -12,6 +14,7 @@ let currentMode: "quick" | "learning" = "quick";
 let currentEnabled = true;
 let currentSiteDisabled = false;
 let debounceMs = 300;
+let currentModel = GROQ_MODEL;
 
 const renderer = new TooltipRenderer();
 
@@ -97,10 +100,12 @@ async function loadSettings(): Promise<void> {
       "hoverDelay",
       "enabled",
       "disabledSites",
+      "groqModel",
       "usageStats",
     ]);
     currentTargetLang = data.targetLang || "es";
     currentMode = data.translationMode || "quick";
+    currentModel = typeof data.groqModel === "string" ? data.groqModel : GROQ_MODEL;
     debounceMs = typeof data.hoverDelay === "number" ? data.hoverDelay : 300;
     currentEnabled = data.enabled !== false;
 
@@ -122,6 +127,10 @@ chrome.storage.onChanged.addListener((changes) => {
   }
   if (changes.translationMode) {
     currentMode = changes.translationMode.newValue;
+  }
+  if (changes.groqModel) {
+    const nv = changes.groqModel.newValue;
+    currentModel = typeof nv === "string" ? nv : GROQ_MODEL;
   }
   if (changes.hoverDelay) {
     const nv = changes.hoverDelay.newValue;
@@ -163,18 +172,22 @@ function onHoverReady(x: number, y: number): void {
     wordHighlight.show(wordRange);
   }
 
-  const cached = l1Cache.get(extracted.word, currentTargetLang, currentMode);
+  const cacheKey = buildCacheKey(
+    extracted.word,
+    extracted.sentence,
+    currentTargetLang,
+    currentMode,
+    currentModel
+  );
+
+  const cached = l1Cache.get(cacheKey);
   if (cached) {
     renderer.show(x, y, extracted.word, cached, false);
     recordCacheHit();
     return;
   }
 
-  const existingPromise = l1Cache.getPending(
-    extracted.word,
-    currentTargetLang,
-    currentMode
-  );
+  const existingPromise = l1Cache.getPending(cacheKey);
 
   if (existingPromise) {
     renderer.show(x, y, extracted.word, {} as TranslationResponse, true);
@@ -204,11 +217,11 @@ function onHoverReady(x: number, y: number): void {
     currentAbortController.signal
   );
 
-  l1Cache.setPending(extracted.word, currentTargetLang, currentMode, promise);
+  l1Cache.setPending(cacheKey, promise);
 
   promise
     .then((result) => {
-      l1Cache.set(extracted.word, currentTargetLang, currentMode, result);
+      l1Cache.set(cacheKey, result);
       recordTranslation(result.sourceLanguage);
       if (gen !== requestGeneration) return;
       renderer.updateContent(extracted.word, result);

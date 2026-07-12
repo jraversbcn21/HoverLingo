@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { buildCacheKey } from "../shared/cache-key";
 
 let l1Cache: typeof import("../content/cache-l1").l1Cache;
 
@@ -18,48 +19,52 @@ function makeResponse() {
   };
 }
 
+const key = (text: string, lang: string, mode: string) =>
+  buildCacheKey(text, "ctx", lang, mode, "test-model");
+
 describe("L1 Cache", () => {
   it("returns null for missing key", () => {
-    expect(l1Cache.get("hello", "es", "quick")).toBeNull();
+    expect(l1Cache.get(key("hello", "es", "quick"))).toBeNull();
   });
 
   it("stores and retrieves a translation", () => {
     const resp = makeResponse();
-    l1Cache.set("hello", "es", "quick", resp);
-    expect(l1Cache.get("hello", "es", "quick")).toEqual(resp);
+    l1Cache.set(key("hello", "es", "quick"), resp);
+    expect(l1Cache.get(key("hello", "es", "quick"))).toEqual(resp);
   });
 
   it("distinguishes by target language", () => {
-    const resp = makeResponse();
-    l1Cache.set("hello", "es", "quick", resp);
-    expect(l1Cache.get("hello", "fr", "quick")).toBeNull();
+    l1Cache.set(key("hello", "es", "quick"), makeResponse());
+    expect(l1Cache.get(key("hello", "fr", "quick"))).toBeNull();
   });
 
   it("distinguishes by mode", () => {
-    const resp = makeResponse();
-    l1Cache.set("hello", "es", "quick", resp);
-    expect(l1Cache.get("hello", "es", "learning")).toBeNull();
+    l1Cache.set(key("hello", "es", "quick"), makeResponse());
+    expect(l1Cache.get(key("hello", "es", "learning"))).toBeNull();
+  });
+
+  it("distinguishes by sentence context", () => {
+    l1Cache.set(buildCacheKey("bank", "river ctx", "es", "quick", "m"), makeResponse());
+    expect(l1Cache.get(buildCacheKey("bank", "money ctx", "es", "quick", "m"))).toBeNull();
   });
 
   it("expires entry after TTL", () => {
-    const resp = makeResponse();
-    l1Cache.set("hello", "es", "quick", resp);
+    l1Cache.set(key("hello", "es", "quick"), makeResponse());
 
     vi.advanceTimersByTime(31 * 60 * 1000);
 
-    expect(l1Cache.get("hello", "es", "quick")).toBeNull();
+    expect(l1Cache.get(key("hello", "es", "quick"))).toBeNull();
   });
 
   it("evicts LRU entry when cache is full", () => {
     for (let i = 0; i < 1000; i++) {
-      l1Cache.set(`word${i}`, "es", "quick", makeResponse());
+      l1Cache.set(key(`word${i}`, "es", "quick"), makeResponse());
     }
 
-    // "word0" was the oldest, should be evicted when inserting #1001
-    l1Cache.set("overflow", "es", "quick", makeResponse());
+    l1Cache.set(key("overflow", "es", "quick"), makeResponse());
 
-    expect(l1Cache.get("word0", "es", "quick")).toBeNull();
-    expect(l1Cache.get("word1", "es", "quick")).not.toBeNull();
+    expect(l1Cache.get(key("word0", "es", "quick"))).toBeNull();
+    expect(l1Cache.get(key("word1", "es", "quick"))).not.toBeNull();
   });
 
   it("deduplicates in-flight requests", async () => {
@@ -68,13 +73,12 @@ describe("L1 Cache", () => {
       resolvePromise = resolve;
     });
 
-    l1Cache.setPending("hello", "es", "quick", promise);
-    expect(l1Cache.getPending("hello", "es", "quick")).toBe(promise);
+    l1Cache.setPending(key("hello", "es", "quick"), promise);
+    expect(l1Cache.getPending(key("hello", "es", "quick"))).toBe(promise);
 
-    const resp = makeResponse();
-    resolvePromise(resp);
+    resolvePromise(makeResponse());
     await promise;
 
-    expect(l1Cache.getPending("hello", "es", "quick")).toBeNull();
+    expect(l1Cache.getPending(key("hello", "es", "quick"))).toBeNull();
   });
 });
