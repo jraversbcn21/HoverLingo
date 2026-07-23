@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoverLingo — Política de Privacidad / Privacy Policy</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+    line-height: 1.6;
+    color: #1e293b;
+    background: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e2e8f0; background: #0f172a; }
+    a { color: #93c5fd; }
+    hr { border-color: #334155; }
+  }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.2rem; margin-top: 2rem; }
+  .date { opacity: 0.7; font-size: 0.9rem; }
+  hr { margin: 3rem 0; border: none; border-top: 1px solid #cbd5e1; }
+  .lang-nav { margin: 1rem 0 0; font-size: 0.95rem; }
+</style>
+</head>
+<body>
+
+<p class="lang-nav"><a href="#es">Español</a> · <a href="#en">English</a></p>
+
+<h1 id="es">Política de Privacidad de HoverLingo</h1>
+<p class="date">Fecha de entrada en vigor: 23 de julio de 2026</p>
+
+<p>HoverLingo es una extensión de Chrome que traduce palabras y frases al colocar el cursor sobre ellas. Esta política describe qué datos procesa la extensión y cómo.</p>
+
+<h2>Datos que se procesan</h2>
+<ul>
+  <li><strong>Texto de la página:</strong> cuando colocas el cursor sobre una palabra (o seleccionas un fragmento), esa palabra y la frase que la rodea se envían a la API de Groq (<code>api.groq.com</code>) con el único fin de generar la traducción. Este envío ocurre solo cuando la extensión está activada y solo para el texto sobre el que interactúas — nunca se envía la página completa.</li>
+  <li><strong>Clave de API:</strong> tu clave de API de Groq, que tú mismo proporcionas, se guarda únicamente en el almacenamiento local de tu navegador (<code>chrome.storage.local</code>). Solo se transmite a <code>api.groq.com</code> como autenticación de tus propias peticiones. Nunca se exporta ni se comparte.</li>
+  <li><strong>Ajustes y estadísticas de uso:</strong> tus preferencias (idioma, modelo, sitios desactivados, etc.) y contadores locales de uso (número de palabras traducidas, tasa de aciertos de caché) se guardan únicamente en tu dispositivo.</li>
+  <li><strong>Caché de traducciones:</strong> las traducciones recientes se guardan localmente (con una caducidad de 24 horas) para evitar peticiones repetidas.</li>
+</ul>
+
+<h2>Lo que NO hacemos</h2>
+<ul>
+  <li>No recopilamos, almacenamos ni vemos ningún dato tuyo: la extensión no tiene servidor propio.</li>
+  <li>No usamos analítica, publicidad ni rastreadores de ningún tipo.</li>
+  <li>No vendemos ni cedemos datos a terceros.</li>
+  <li>No sincronizamos tu clave de API con la nube (se guarda en <code>storage.local</code>, no en <code>storage.sync</code>).</li>
+</ul>
+
+<h2>Terceros</h2>
+<p>Las traducciones las genera Groq, Inc. El texto enviado se procesa según la <a href="https://groq.com/privacy-policy/">política de privacidad de Groq</a>. HoverLingo no controla ese procesamiento; si no estás de acuerdo, no configures una clave de API.</p>
+
+<h2>Permisos de la extensión</h2>
+<ul>
+  <li><strong>Acceso a las páginas web:</strong> necesario para detectar la palabra bajo el cursor y mostrar el tooltip de traducción en cualquier página. La extensión no lee ni transmite el contenido de la página más allá del texto sobre el que pasas el cursor.</li>
+  <li><strong>storage:</strong> para guardar tus ajustes, la caché y las estadísticas localmente.</li>
+  <li><strong>api.groq.com:</strong> el único servidor con el que se comunica la extensión.</li>
+</ul>
+
+<h2>Control y eliminación de datos</h2>
+<p>Puedes desactivar HoverLingo globalmente o por sitio desde el popup. Desinstalar la extensión elimina todos los datos locales (clave de API, ajustes, caché y estadísticas).</p>
+
+<h2>Cambios y contacto</h2>
+<p>Si esta política cambia, la nueva versión se publicará en esta misma URL. Para cualquier consulta: <a href="mailto:jorgeborn3@gmail.com">jorgeborn3@gmail.com</a>.</p>
+
+<hr>
+
+<h1 id="en">HoverLingo Privacy Policy</h1>
+<p class="date">Effective date: July 23, 2026</p>
+
+<p>HoverLingo is a Chrome extension that translates words and phrases when you hover over them. This policy describes what data the extension processes and how.</p>
+
+<h2>Data processed</h2>
+<ul>
+  <li><strong>Page text:</strong> when you hover over a word (or select a snippet), that word and its surrounding sentence are sent to the Groq API (<code>api.groq.com</code>) for the sole purpose of generating the translation. This happens only while the extension is enabled and only for the text you interact with — the full page is never sent.</li>
+  <li><strong>API key:</strong> your self-provided Groq API key is stored only in your browser's local storage (<code>chrome.storage.local</code>). It is transmitted only to <code>api.groq.com</code> to authenticate your own requests. It is never exported or shared.</li>
+  <li><strong>Settings and usage stats:</strong> your preferences (language, model, disabled sites, etc.) and local usage counters (words translated, cache hit rate) are stored only on your device.</li>
+  <li><strong>Translation cache:</strong> recent translations are cached locally (24-hour expiry) to avoid repeated requests.</li>
+</ul>
+
+<h2>What we do NOT do</h2>
+<ul>
+  <li>We do not collect, store, or see any of your data: the extension has no server of its own.</li>
+  <li>No analytics, no advertising, no trackers of any kind.</li>
+  <li>We do not sell or share data with third parties.</li>
+  <li>Your API key is never synced to the cloud (it lives in <code>storage.local</code>, not <code>storage.sync</code>).</li>
+</ul>
+
+<h2>Third parties</h2>
+<p>Translations are generated by Groq, Inc. Submitted text is processed under <a href="https://groq.com/privacy-policy/">Groq's privacy policy</a>. HoverLingo does not control that processing; if you disagree with it, do not configure an API key.</p>
+
+<h2>Extension permissions</h2>
+<ul>
+  <li><strong>Access to web pages:</strong> required to detect the word under your cursor and render the translation tooltip on any page. The extension does not read or transmit page content beyond the text you hover over.</li>
+  <li><strong>storage:</strong> to keep your settings, cache, and stats locally.</li>
+  <li><strong>api.groq.com:</strong> the only server the extension communicates with.</li>
+</ul>
+
+<h2>Data control and deletion</h2>
+<p>You can disable HoverLingo globally or per site from the popup. Uninstalling the extension removes all local data (API key, settings, cache, and stats).</p>
+
+<h2>Changes and contact</h2>
+<p>If this policy changes, the new version will be published at this same URL. Questions: <a href="mailto:jorgeborn3@gmail.com">jorgeborn3@gmail.com</a>.</p>
+
+</body>
+</html>

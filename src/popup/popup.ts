@@ -257,7 +257,7 @@ disableSiteToggle.addEventListener("change", async () => {
   if (!currentSiteHostname) return;
 
   const data = await chrome.storage.local.get("disabledSites");
-  const disabledSites: string[] = data.disabledSites || [];
+  const disabledSites: string[] = Array.isArray(data.disabledSites) ? data.disabledSites : [];
 
   if (disableSiteToggle.checked) {
     if (!disabledSites.includes(currentSiteHostname)) {

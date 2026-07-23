@@ -3,6 +3,7 @@
   "name": "HoverLingo",
   "version": "0.1.0",
   "description": "Traducción instantánea al colocar el cursor sobre cualquier palabra",
+  "homepage_url": "https://github.com/jraversbcn21/HoverLingo",
   "permissions": ["storage"],
   "host_permissions": ["https://api.groq.com/*"],
   "commands": {
