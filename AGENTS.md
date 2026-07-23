@@ -168,13 +168,15 @@ Learning mode adds: `pronunciation`, `partOfSpeech`, `explanation`, `example`.
 
 | Model ID | Display Name |
 |---|---|
-| `qwen/qwen3.6-27b` | Qwen 3.6 27B (default) |
+| `llama-3.3-70b-versatile` | Llama 3.3 70B (default) |
+| `meta-llama/llama-4-scout-17b-16e-instruct` | Llama 4 Scout 17B |
+| `llama-3.1-8b-instant` | Llama 3.1 8B |
+| `qwen/qwen3.6-27b` | Qwen 3.6 27B |
 | `qwen/qwen3-32b` | Qwen 3 32B |
 | `openai/gpt-oss-120b` | GPT OSS 120B |
 | `openai/gpt-oss-20b` | GPT OSS 20B |
-| `llama-3.3-70b-versatile` | Llama 3.3 70B |
-| `meta-llama/llama-4-scout-17b-16e-instruct` | Llama 4 Scout 17B |
-| `llama-3.1-8b-instant` | Llama 3.1 8B |
+
+> **Default is a non-reasoning model on purpose.** Reasoning models (Qwen, GPT-OSS) generate a hidden `<think>` block that still counts toward the free-tier TPM budget (~1.5k tokens/hover), exhausting Groq's 8k TPM after just 4-5 hovers → HTTP 429 on the rest. Llama 3.3 70B doesn't reason, so each hover costs ~250 tokens and fits comfortably in the 12k TPM free-tier limit while keeping high translation quality. `reasoning_format: "hidden"` only hides the block — it does **not** stop the tokens being generated/counted.
 
 Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `provider/model-name`.
 
@@ -215,7 +217,7 @@ All data in `chrome.storage.local`:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `groqApiKey` | `string` | `""` | User's Groq API key (never exported) |
-| `groqModel` | `string` | `qwen/qwen3.6-27b` | Active Groq model ID |
+| `groqModel` | `string` | `llama-3.3-70b-versatile` | Active Groq model ID |
 | `targetLang` | `string` | `es` | ISO 639-1 target language code |
 | `translationMode` | `string` | `quick` | `"quick"` or `"learning"` |
 | `hoverDelay` | `number` | `300` | Debounce delay in ms (100-1000) |

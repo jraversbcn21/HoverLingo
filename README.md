@@ -66,7 +66,7 @@ Open the popup by clicking the HoverLingo icon in your browser toolbar.
 | Setting | Description |
 |---------|-------------|
 | Groq API Key | Your free API key from console.groq.com |
-| Model | Choose from 7 Groq models (Qwen 3.6 27B is the default) |
+| Model | Choose from 7 Groq models (Llama 3.3 70B is the default) |
 | Target Language | The language you want translations in |
 | Translation Mode | Quick (fast, minimal) or Learning (detailed with pronunciation and examples) |
 | Hover Delay | How long you need to hover before the tooltip appears (100ms to 1000ms) |

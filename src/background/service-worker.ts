@@ -330,7 +330,14 @@ async function handleTranslate(
     await l2Cache.set(cacheKey, result);
     sendResponse({ success: true, data: result, cached: false });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
+    let message: string;
+    if (err instanceof GroqApiError && err.status === 429) {
+      // Señal limpia para que el content script muestre un aviso específico
+      // de límite de tasa en vez del error genérico.
+      message = "RATE_LIMIT";
+    } else {
+      message = err instanceof Error ? err.message : "Unknown error";
+    }
     sendResponse({ success: false, error: message });
   }
 }

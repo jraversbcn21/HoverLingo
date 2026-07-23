@@ -244,10 +244,11 @@ function onHoverReady(x: number, y: number): void {
         if (gen !== requestGeneration) return;
         renderer.updateContent(extracted.word, result);
       })
-      .catch(() => {
+      .catch((err) => {
         if (gen !== requestGeneration) return;
         wordHighlight.hide();
-        renderer.updateError(extracted.word, "No se pudo traducir. Inténtalo de nuevo.");
+        const msg = err instanceof Error ? err.message : "";
+        renderer.updateError(extracted.word, tooltipErrorFor(msg));
       });
     return;
   }
@@ -288,14 +289,23 @@ function onHoverReady(x: number, y: number): void {
       if (gen !== requestGeneration) return;
       wordHighlight.hide();
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("API key not configured")) {
-        renderer.updateError(extracted.word, "Configura tu API key de Groq en el popup de HoverLingo");
-      } else if (msg.includes("timed out")) {
-        renderer.updateError(extracted.word, "La traducción tardó demasiado. Inténtalo de nuevo.");
-      } else {
-        renderer.updateError(extracted.word, "No se pudo traducir. Inténtalo de nuevo.");
-      }
+      renderer.updateError(extracted.word, tooltipErrorFor(msg));
     });
+}
+
+// Traduce el mensaje de error crudo (del service worker o del canal de
+// mensajería) al texto que ve el usuario en el tooltip.
+function tooltipErrorFor(rawMessage: string): string {
+  if (rawMessage === "RATE_LIMIT" || rawMessage.includes("429")) {
+    return "Límite de la API de Groq alcanzado. Espera unos segundos e inténtalo de nuevo.";
+  }
+  if (rawMessage.includes("API key not configured")) {
+    return "Configura tu API key de Groq en el popup de HoverLingo";
+  }
+  if (rawMessage.includes("timed out")) {
+    return "La traducción tardó demasiado. Inténtalo de nuevo.";
+  }
+  return "No se pudo traducir. Inténtalo de nuevo.";
 }
 
 function abortCurrentRequest(): void {
