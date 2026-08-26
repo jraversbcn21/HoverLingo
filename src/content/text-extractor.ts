@@ -110,28 +110,20 @@ const BLOCK_TAGS = new Set([
   "PRE", "H1", "H2", "H3", "H4", "H5", "H6", "BODY",
 ]);
 
-// ponytail: cota para no reconstruir el texto de bloques gigantes en cada hover;
-// si se supera, la frase queda limitada al nodo de texto (comportamiento previo)
+// ponytail: cota que acota el recorrido TreeWalker por hover; si el texto
+// acumulado la supera, se abandona el recorrido y la frase queda limitada
+// al nodo de texto (extractSentence sobre el nodo, no sobre el bloque)
 const MAX_BLOCK_TEXT = 5000;
 
-function closestBlock(node: Text): HTMLElement | null {
+const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT"]);
+
+function closestBlock(node: Node): HTMLElement | null {
   let el = node.parentElement;
   while (el) {
     if (BLOCK_TAGS.has(el.tagName)) return el;
     el = el.parentElement;
   }
   return null;
-}
-
-function offsetInBlock(block: HTMLElement, node: Text): number {
-  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-  let offset = 0;
-  let current = walker.nextNode();
-  while (current && current !== node) {
-    offset += (current.textContent || "").length;
-    current = walker.nextNode();
-  }
-  return offset;
 }
 
 export function extractBlockSentence(
@@ -141,14 +133,49 @@ export function extractBlockSentence(
 ): string {
   const nodeText = node.textContent || "";
   const block = closestBlock(node);
-  const blockText = block ? block.textContent || "" : "";
 
-  if (!block || blockText.length > MAX_BLOCK_TEXT) {
+  if (!block) {
     return extractSentence(nodeText, wordStart, wordEnd);
   }
 
-  const base = offsetInBlock(block, node);
-  const sentence = extractSentence(blockText, base + wordStart, base + wordEnd);
+  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT, {
+    acceptNode(n: Node): number {
+      const parent = n.parentElement;
+      if (parent && SKIP_TAGS.has(parent.tagName)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  let text = "";
+  let base = -1;
+  let prevBlock: HTMLElement | null = null;
+  let current = walker.nextNode() as Text | null;
+
+  while (current) {
+    const ancestor = closestBlock(current);
+    if (prevBlock !== null && ancestor !== prevBlock && text.length > 0) {
+      text += "\n";
+    }
+    if (current === node) {
+      base = text.length;
+    }
+    text += current.textContent || "";
+    prevBlock = ancestor;
+
+    if (text.length > MAX_BLOCK_TEXT) {
+      return extractSentence(nodeText, wordStart, wordEnd);
+    }
+
+    current = walker.nextNode() as Text | null;
+  }
+
+  if (base === -1) {
+    return extractSentence(nodeText, wordStart, wordEnd);
+  }
+
+  const sentence = extractSentence(text, base + wordStart, base + wordEnd);
   return sentence.replace(/\s+/g, " ").trim();
 }
 

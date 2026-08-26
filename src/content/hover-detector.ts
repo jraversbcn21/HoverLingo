@@ -78,7 +78,10 @@ export class HoverDetector {
 
   private onMouseOver = (e: MouseEvent): void => {
     if (!this.enabled) return;
-    if (isInTooltip(e.target)) return;
+    if (isInTooltip(e.target)) {
+      this.clearTimer();
+      return;
+    }
     this.currentX = e.clientX;
     this.currentY = e.clientY;
     this.resetTimer();
@@ -86,15 +89,18 @@ export class HoverDetector {
 
   private onMouseMove = (e: MouseEvent): void => {
     if (!this.enabled) return;
-    if (isInTooltip(e.target)) return;
+    if (isInTooltip(e.target)) {
+      this.clearTimer();
+      return;
+    }
     this.currentX = e.clientX;
     this.currentY = e.clientY;
     this.resetTimer();
   };
 
   private onMouseOut = (e: MouseEvent): void => {
-    if (isInTooltip(e.relatedTarget)) return;
     this.clearTimer();
+    if (isInTooltip(e.relatedTarget)) return;
     if (this.state !== "idle") {
       this.setState("idle");
     }
@@ -107,7 +113,8 @@ export class HoverDetector {
     }
   };
 
-  private onScroll = (): void => {
+  private onScroll = (e: Event): void => {
+    if (isInTooltip(e.target)) return;
     this.clearTimer();
     this.setState("idle");
   };

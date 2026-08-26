@@ -1,0 +1,80 @@
+/**
+ * @vitest-environment jsdom
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { HoverDetector, HoverState } from "../content/hover-detector";
+
+describe("HoverDetector tooltip guards", () => {
+  let detector: HoverDetector;
+  let hoverCalls: Array<[number, number]>;
+  let states: HoverState[];
+
+  beforeEach(() => {
+    document.body.innerHTML = `<div data-hl-tooltip><div class="hl-scrollable">tooltip content</div></div>`;
+    vi.useFakeTimers();
+    hoverCalls = [];
+    states = [];
+    detector = new HoverDetector(
+      300,
+      (x, y) => hoverCalls.push([x, y]),
+      (state) => states.push(state)
+    );
+    detector.init();
+  });
+
+  afterEach(() => {
+    detector.destroy();
+    vi.useRealTimers();
+    document.body.innerHTML = "";
+  });
+
+  it("scrolling inside the tooltip does not flip state to idle", () => {
+    const pageEl = document.createElement("div");
+    pageEl.textContent = "some page text";
+    document.body.appendChild(pageEl);
+
+    // drive the detector into "hovering" via a real mouseover + debounce
+    const moveOnPage = new MouseEvent("mouseover", {
+      bubbles: true,
+      clientX: 10,
+      clientY: 10,
+    });
+    pageEl.dispatchEvent(moveOnPage);
+    vi.advanceTimersByTime(300);
+    expect(states).toContain("hovering");
+    states.length = 0;
+
+    const tooltip = document.querySelector("[data-hl-tooltip]")!;
+    const inner = tooltip.querySelector(".hl-scrollable")!;
+    const scrollEvent = new Event("scroll", { bubbles: true });
+    inner.dispatchEvent(scrollEvent);
+
+    expect(states).not.toContain("idle");
+  });
+
+  it("a mousemove into the tooltip cancels the pending debounce timer", () => {
+    const pageEl = document.createElement("div");
+    pageEl.textContent = "some page text";
+    document.body.appendChild(pageEl);
+
+    const moveOnPage = new MouseEvent("mousemove", {
+      bubbles: true,
+      clientX: 10,
+      clientY: 10,
+    });
+    pageEl.dispatchEvent(moveOnPage);
+
+    const tooltip = document.querySelector("[data-hl-tooltip]")!;
+    const moveOnTooltip = new MouseEvent("mousemove", {
+      bubbles: true,
+      clientX: 20,
+      clientY: 20,
+    });
+    tooltip.dispatchEvent(moveOnTooltip);
+
+    vi.advanceTimersByTime(1000);
+
+    expect(hoverCalls.length).toBe(0);
+  });
+});

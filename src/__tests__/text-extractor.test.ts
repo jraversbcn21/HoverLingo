@@ -147,5 +147,26 @@ describe("Text Extractor", () => {
       // "Frase" occupies [0, 5); fallback path must still work on the node itself
       expect(extractBlockSentence(node, 0, 5)).toBe("Frase corta aquí");
     });
+
+    it("does not bleed text from a nested block into the sentence", () => {
+      const [node] = textNodes(
+        "<li>Inicio quiere decir algo<ul><li>Productos</li></ul></li>"
+      );
+      // "Inicio" occupies [0, 6) in the outer <li>'s text node
+      const result = extractBlockSentence(node, 0, 6);
+      expect(result).toBe("Inicio quiere decir algo");
+      expect(result).not.toContain("Productos");
+    });
+
+    it("excludes text inside <style> from the sentence", () => {
+      const [node] = textNodes(
+        "<p>Hola<style>.a{color:red}</style> mundo</p>"
+      );
+      // "Hola" occupies [0, 4) in the first text node
+      const result = extractBlockSentence(node, 0, 4);
+      expect(result).not.toContain("color");
+      expect(result).not.toContain(".a");
+      expect(result).toContain("Hola");
+    });
   });
 });
