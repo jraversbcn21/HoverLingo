@@ -16,7 +16,7 @@ let currentSiteDisabled = false;
 let debounceMs = 300;
 let currentModel = GROQ_MODEL;
 
-const renderer = new TooltipRenderer();
+const renderer = new TooltipRenderer(onTranslateSentence);
 
 const hoverDetector = new HoverDetector(
   debounceMs,
@@ -204,6 +204,60 @@ function onStateChange(state: HoverState): void {
   }
 }
 
+function onTranslateSentence(sentence: string): void {
+  const gen = requestGeneration;
+  const cacheKey = buildCacheKey(
+    sentence,
+    sentence,
+    currentTargetLang,
+    "quick",
+    currentModel
+  );
+
+  const cached = l1Cache.get(cacheKey);
+  if (cached) {
+    recordCacheHit();
+    renderer.updateSentence(cached);
+    return;
+  }
+
+  let resultPromise = l1Cache.getPending(cacheKey);
+  if (!resultPromise) {
+    const controller = new AbortController();
+    const outcomePromise = requestTranslation(
+      sentence,
+      sentence,
+      currentTargetLang,
+      "quick",
+      controller.signal
+    );
+    resultPromise = outcomePromise.then(({ result, cached: fromL2 }) => {
+      l1Cache.set(cacheKey, result);
+      if (fromL2) {
+        recordCacheHit();
+      } else {
+        recordTranslation(result.sourceLanguage);
+      }
+      return result;
+    });
+    resultPromise.catch(() => {
+      // evita "unhandled rejection" cuando nadie está suscrito al pending
+    });
+    l1Cache.setPending(cacheKey, resultPromise);
+  }
+
+  resultPromise
+    .then((result) => {
+      if (gen !== requestGeneration) return;
+      renderer.updateSentence(result);
+    })
+    .catch((err) => {
+      if (gen !== requestGeneration) return;
+      const msg = err instanceof Error ? err.message : "";
+      renderer.updateSentenceError(tooltipErrorFor(msg));
+    });
+}
+
 function onHoverReady(x: number, y: number): void {
   abortCurrentRequest();
   const gen = requestGeneration;
@@ -226,9 +280,11 @@ function onHoverReady(x: number, y: number): void {
     currentModel
   );
 
+  const sentenceForTooltip = extracted.isSelection ? undefined : extracted.sentence;
+
   const cached = l1Cache.get(cacheKey);
   if (cached) {
-    renderer.show(x, y, extracted.word, cached, false);
+    renderer.show(x, y, extracted.word, cached, false, sentenceForTooltip);
     recordCacheHit();
     return;
   }
@@ -242,7 +298,7 @@ function onHoverReady(x: number, y: number): void {
       .then((result) => {
         recordCacheHit();
         if (gen !== requestGeneration) return;
-        renderer.updateContent(extracted.word, result);
+        renderer.updateContent(extracted.word, result, sentenceForTooltip);
       })
       .catch((err) => {
         if (gen !== requestGeneration) return;
@@ -280,7 +336,7 @@ function onHoverReady(x: number, y: number): void {
         recordTranslation(result.sourceLanguage);
       }
       if (gen !== requestGeneration) return;
-      renderer.updateContent(extracted.word, result);
+      renderer.updateContent(extracted.word, result, sentenceForTooltip);
     })
     .catch((err) => {
       if (err instanceof DOMException && err.name === "AbortError") {
