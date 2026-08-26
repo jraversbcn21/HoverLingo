@@ -4,6 +4,10 @@ export interface HoverCallback {
 
 export type HoverState = "idle" | "hovering";
 
+export function isInTooltip(target: EventTarget | null): boolean {
+  return target instanceof Element && target.closest("[data-hl-tooltip]") !== null;
+}
+
 export class HoverDetector {
   private debounceMs: number;
   private callback: HoverCallback;
@@ -74,6 +78,7 @@ export class HoverDetector {
 
   private onMouseOver = (e: MouseEvent): void => {
     if (!this.enabled) return;
+    if (isInTooltip(e.target)) return;
     this.currentX = e.clientX;
     this.currentY = e.clientY;
     this.resetTimer();
@@ -81,12 +86,14 @@ export class HoverDetector {
 
   private onMouseMove = (e: MouseEvent): void => {
     if (!this.enabled) return;
+    if (isInTooltip(e.target)) return;
     this.currentX = e.clientX;
     this.currentY = e.clientY;
     this.resetTimer();
   };
 
-  private onMouseOut = (): void => {
+  private onMouseOut = (e: MouseEvent): void => {
+    if (isInTooltip(e.relatedTarget)) return;
     this.clearTimer();
     if (this.state !== "idle") {
       this.setState("idle");
