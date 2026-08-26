@@ -130,7 +130,8 @@ export class TooltipRenderer {
   private wireSentenceButton(): void {
     const btn = this.tooltip?.querySelector<HTMLButtonElement>(".hl-sentence-btn");
     if (!btn) return;
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const sentence = this.currentSentence;
       if (!this.tooltip || !sentence) return;
       const section = this.tooltip.querySelector(".hl-sentence");

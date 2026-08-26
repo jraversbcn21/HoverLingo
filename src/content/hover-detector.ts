@@ -7,7 +7,6 @@ export type HoverState = "idle" | "hovering";
 export function isInTooltip(target: EventTarget | null): boolean {
   return target instanceof Element && target.closest("[data-hl-tooltip]") !== null;
 }
-
 export class HoverDetector {
   private debounceMs: number;
   private callback: HoverCallback;
@@ -20,6 +19,7 @@ export class HoverDetector {
   private observer: MutationObserver | null = null;
   private mutationTimer: ReturnType<typeof setTimeout> | null = null;
   private mutationCount = 0;
+  private pointerInTooltip = false;
   private static readonly MUTATION_DEBOUNCE = 500;
   private static readonly MUTATION_THRESHOLD = 20;
 
@@ -78,7 +78,8 @@ export class HoverDetector {
 
   private onMouseOver = (e: MouseEvent): void => {
     if (!this.enabled) return;
-    if (isInTooltip(e.target)) {
+    this.pointerInTooltip = isInTooltip(e.target);
+    if (this.pointerInTooltip) {
       this.clearTimer();
       return;
     }
@@ -89,7 +90,8 @@ export class HoverDetector {
 
   private onMouseMove = (e: MouseEvent): void => {
     if (!this.enabled) return;
-    if (isInTooltip(e.target)) {
+    this.pointerInTooltip = isInTooltip(e.target);
+    if (this.pointerInTooltip) {
       this.clearTimer();
       return;
     }
@@ -100,7 +102,8 @@ export class HoverDetector {
 
   private onMouseOut = (e: MouseEvent): void => {
     this.clearTimer();
-    if (isInTooltip(e.relatedTarget)) return;
+    this.pointerInTooltip = isInTooltip(e.relatedTarget);
+    if (this.pointerInTooltip) return;
     if (this.state !== "idle") {
       this.setState("idle");
     }
@@ -132,7 +135,11 @@ export class HoverDetector {
 
     if (this.mutationTimer) clearTimeout(this.mutationTimer);
     this.mutationTimer = setTimeout(() => {
-      if (this.mutationCount > HoverDetector.MUTATION_THRESHOLD && this.state !== "idle") {
+      if (
+        this.mutationCount > HoverDetector.MUTATION_THRESHOLD &&
+        !this.pointerInTooltip &&
+        this.state !== "idle"
+      ) {
         this.setState("idle");
       }
       this.mutationCount = 0;

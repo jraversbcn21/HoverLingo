@@ -82,6 +82,22 @@ describe("HoverDetector tooltip guards", () => {
     expect(states).not.toContain("idle");
   });
 
+  it("page mutations do not flip state to idle while the pointer is inside the tooltip", async () => {
+    enterHoveringState();
+
+    // pointer parks on the tooltip (e.g. after clicking "frase completa")
+    document.querySelector("[data-hl-tooltip]")!.dispatchEvent(
+      new MouseEvent("mouseover", { bubbles: true, clientX: 50, clientY: 50 })
+    );
+
+    // page JS (analytics, SPA re-render) churns the DOM past the threshold
+    addNodes(document.body, 25);
+    await Promise.resolve();
+    vi.advanceTimersByTime(500);
+
+    expect(states).not.toContain("idle");
+  });
+
   it("page mutations past the threshold still flip state to idle", async () => {
     enterHoveringState();
 
