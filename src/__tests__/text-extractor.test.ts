@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { extractTextAt } from "../content/text-extractor";
+import { extractTextAt, extractBlockSentence } from "../content/text-extractor";
 
 describe("Text Extractor", () => {
   const originalGetClientRects = Range.prototype.getClientRects;
@@ -100,5 +100,52 @@ describe("Text Extractor", () => {
 
     const result = extractTextAt(5, 5);
     expect(result).toBeNull();
+  });
+
+  describe("extractBlockSentence", () => {
+    function textNodes(html: string): Text[] {
+      document.body.innerHTML = html;
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodes: Text[] = [];
+      let n = walker.nextNode();
+      while (n) {
+        nodes.push(n as Text);
+        n = walker.nextNode();
+      }
+      return nodes;
+    }
+
+    it("spans inline elements within the block", () => {
+      const [first] = textNodes(
+        "<label>Guarda los <b>datos</b> de la tarjeta para compras futuras.</label>"
+      );
+      // hovered word "Guarda" occupies [0, 6) in the first text node
+      expect(extractBlockSentence(first, 0, 6)).toBe(
+        "Guarda los datos de la tarjeta para compras futuras"
+      );
+    });
+
+    it("computes offsets from the hovered node, not by string search", () => {
+      const nodes = textNodes("<p>Primera uno. Segunda <i>uno</i> fin.</p>");
+      // nodes[1] is the "uno" inside <i>; word occupies [0, 3)
+      expect(extractBlockSentence(nodes[1], 0, 3)).toBe("Segunda uno fin");
+    });
+
+    it("stops at sentence enders inside the block", () => {
+      const [node] = textNodes("<p>Una frase. Otra cosa dicha. Y más.</p>");
+      // "Otra" occupies [11, 15) in the single text node
+      expect(extractBlockSentence(node, 11, 15)).toBe("Otra cosa dicha");
+    });
+
+    it("collapses whitespace runs in the result", () => {
+      const [node] = textNodes("<label>Guarda\t los  datos.</label>");
+      expect(extractBlockSentence(node, 0, 6)).toBe("Guarda los datos");
+    });
+
+    it("falls back to single-node extraction when the block text is huge", () => {
+      const [node] = textNodes(`<div>Frase corta aquí. ${"x".repeat(6000)}</div>`);
+      // "Frase" occupies [0, 5); fallback path must still work on the node itself
+      expect(extractBlockSentence(node, 0, 5)).toBe("Frase corta aquí");
+    });
   });
 });

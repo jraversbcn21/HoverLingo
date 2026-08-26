@@ -104,6 +104,54 @@ function extractSentence(text: string, wordStart: number, wordEnd: number): stri
   return sentence;
 }
 
+const BLOCK_TAGS = new Set([
+  "P", "DIV", "LI", "TD", "TH", "LABEL", "BLOCKQUOTE", "ARTICLE", "SECTION",
+  "ASIDE", "HEADER", "FOOTER", "MAIN", "FIGCAPTION", "CAPTION", "DD", "DT",
+  "PRE", "H1", "H2", "H3", "H4", "H5", "H6", "BODY",
+]);
+
+// ponytail: cota para no reconstruir el texto de bloques gigantes en cada hover;
+// si se supera, la frase queda limitada al nodo de texto (comportamiento previo)
+const MAX_BLOCK_TEXT = 5000;
+
+function closestBlock(node: Text): HTMLElement | null {
+  let el = node.parentElement;
+  while (el) {
+    if (BLOCK_TAGS.has(el.tagName)) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
+function offsetInBlock(block: HTMLElement, node: Text): number {
+  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+  let offset = 0;
+  let current = walker.nextNode();
+  while (current && current !== node) {
+    offset += (current.textContent || "").length;
+    current = walker.nextNode();
+  }
+  return offset;
+}
+
+export function extractBlockSentence(
+  node: Text,
+  wordStart: number,
+  wordEnd: number
+): string {
+  const nodeText = node.textContent || "";
+  const block = closestBlock(node);
+  const blockText = block ? block.textContent || "" : "";
+
+  if (!block || blockText.length > MAX_BLOCK_TEXT) {
+    return extractSentence(nodeText, wordStart, wordEnd);
+  }
+
+  const base = offsetInBlock(block, node);
+  const sentence = extractSentence(blockText, base + wordStart, base + wordEnd);
+  return sentence.replace(/\s+/g, " ").trim();
+}
+
 function isPointInSelection(selection: Selection, x: number, y: number): boolean {
   for (let i = 0; i < selection.rangeCount; i++) {
     const rects = selection.getRangeAt(i).getClientRects();
@@ -146,7 +194,7 @@ export function extractTextAt(x: number, y: number): ExtractedText | null {
   const normalizedWord = word.replace(PUNCTUATION_STRIP, "").trim();
   if (!normalizedWord || normalizedWord.length === 0) return null;
 
-  const sentence = extractSentence(text, start, end);
+  const sentence = extractBlockSentence(textNode, start, end);
 
   return {
     word: normalizedWord,
