@@ -1,0 +1,33 @@
+{
+  "extName": { "message": "HoverLingo" },
+  "extDesc": { "message": "Traducció instantània en passar el cursor sobre qualsevol paraula" },
+  "enabledLabel": { "message": "Activat" },
+  "disableSiteOn": {
+    "message": "Desactiva a $HOST$",
+    "placeholders": { "host": { "content": "$1" } }
+  },
+  "apiKeyLabel": { "message": "Clau API de Groq" },
+  "apiKeyHint": { "message": "Aconsegueix la teva clau API gratuïta a console.groq.com" },
+  "modelLabel": { "message": "Model" },
+  "targetLangLabel": { "message": "Idioma de destinació" },
+  "modeLabel": { "message": "Mode de traducció" },
+  "modeQuick": { "message": "Ràpid" },
+  "modeLearning": { "message": "Aprenentatge" },
+  "hoverDelayLabel": { "message": "Retard del hover:" },
+  "statWords": { "message": "paraules" },
+  "statCacheHits": { "message": "encerts de memòria cau" },
+  "exportBtn": { "message": "Exporta" },
+  "importBtn": { "message": "Importa" },
+  "resetStatsBtn": { "message": "Restableix stats" },
+  "resetStatsConfirm": { "message": "Vols restablir les estadístiques d'ús?" },
+  "statusSaved": { "message": "Desat" },
+  "statusExported": { "message": "Exportat" },
+  "statusImported": { "message": "Importat" },
+  "statusInvalidFile": { "message": "Fitxer de configuració no vàlid" },
+  "statusImportFailed": { "message": "Error en importar" },
+  "shortcutLabel": {
+    "message": "Drecera: $KEYS$",
+    "placeholders": { "keys": { "content": "$1" } }
+  },
+  "shortcutUnassigned": { "message": "Drecera: sense assignar (chrome://extensions/shortcuts)" }
+}

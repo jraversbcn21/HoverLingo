@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** v0.2.0 — cross-tab request collapsing, popup i18n (EN/ES), stats reset button, SW integration tests. 56 unit tests. Uploaded to Chrome Web Store.
+**Current state:** v0.2.0 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests. 56 unit tests. Uploaded to Chrome Web Store.
 
 ---
 
@@ -64,7 +64,7 @@ hoverlingo/
 │       ├── extract-json.test.ts          # 8 tests: think blocks, fences, nested braces, trailing text, truncated
 │       ├── settings-validation.test.ts   # 7 tests: valid shapes, type rejection, clamping, allowlist
 │       └── service-worker.test.ts        # 7 tests: SW message handling (5 caracterización + 2 request collapsing)
-├── public/_locales/                      # EN/ES i18n messages for popup + manifest name/description
+├── public/_locales/                      # EN/ES/CA i18n messages for popup + manifest name/description
 └── dist/                                 # Build output (loaded as unpacked extension)
 ```
 
@@ -207,7 +207,7 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 22. **Error feedback** — tooltip shows descriptive error instead of disappearing (API key, timeout, generic).
 23. **Request generation guard** — stale responses from previous hovers are discarded; cache is populated regardless.
 24. **Cross-tab request collapsing** — in-flight promise Map in SW keyed by cache key; best-effort (lost if SW dies).
-25. **Popup i18n via native chrome.i18n** — EN default + ES; manifest name/description localized.
+25. **Popup i18n via native chrome.i18n** — EN default + ES + CA; manifest name/description localized.
 
 ---
 

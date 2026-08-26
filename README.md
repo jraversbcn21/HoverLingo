@@ -15,7 +15,7 @@ Hover over any word on any webpage and get instant translations. HoverLingo uses
 - **Keyboard shortcut.** Press `Ctrl+Shift+K` (`Cmd+Shift+K` on Mac) to toggle on and off.
 - **Dark mode.** Tooltip adapts to your system theme automatically.
 - **Export and import.** Backup your settings as a JSON file and restore them anywhere.
-- **Localized popup.** The settings popup follows your browser language (English and Spanish).
+- **Localized popup.** The settings popup follows your browser language (English, Spanish and Catalan).
 - **Usage stats.** See words translated, cache hit rate, and top languages — with a one-click reset.
 - **No tracking, no ads, no backend.** Everything runs locally in your browser.
 
