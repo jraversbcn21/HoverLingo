@@ -18,6 +18,11 @@ const LANGUAGE_SCRIPT: Record<string, string> = {
   el: "greek",
 };
 
+// Colapso de peticiones cross-tab: pestañas que piden la misma traducción a
+// la vez comparten una sola llamada a Groq. Best-effort: si MV3 mata el SW,
+// el Map se pierde y simplemente no colapsa esa vez (L2 cubre persistencia).
+const inFlight = new Map<string, Promise<TranslationResponse>>();
+
 interface TranslationRequest {
   text: string;
   sentence: string;
@@ -324,21 +329,38 @@ async function handleTranslate(
       return;
     }
 
-    const result = await callGroqWithRetry(
-      request.text,
-      request.sentence,
-      targetLang,
-      mode,
-      apiKey,
-      model
-    );
-
-    if (!validateTranslationScript(result.translation, targetLang)) {
-      result.confidence = 0;
+    const existing = inFlight.get(cacheKey);
+    if (existing) {
+      const data = await existing;
+      sendResponse({ success: true, data, cached: true });
+      return;
     }
 
-    await l2Cache.set(cacheKey, result);
-    sendResponse({ success: true, data: result, cached: false });
+    const flight = (async () => {
+      const result = await callGroqWithRetry(
+        request.text,
+        request.sentence,
+        targetLang,
+        mode,
+        apiKey,
+        model
+      );
+
+      if (!validateTranslationScript(result.translation, targetLang)) {
+        result.confidence = 0;
+      }
+
+      await l2Cache.set(cacheKey, result);
+      return result;
+    })();
+    inFlight.set(cacheKey, flight);
+
+    try {
+      const result = await flight;
+      sendResponse({ success: true, data: result, cached: false });
+    } finally {
+      inFlight.delete(cacheKey);
+    }
   } catch (err) {
     let message: string;
     if (err instanceof GroqApiError && err.status === 429) {

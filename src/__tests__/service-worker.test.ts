@@ -171,4 +171,40 @@ describe("Service worker integration", () => {
     expect(body.model).toBe(DEFAULT_MODEL);
     expect(body.reasoning_effort).toBe("none");
   });
+
+  it("collapses concurrent identical requests into one fetch", async () => {
+    let resolveFetch!: (r: Response) => void;
+    fetchMock.mockImplementation(
+      () => new Promise<Response>((res) => { resolveFetch = res; })
+    );
+
+    const p1 = sendTranslate(PAYLOAD);
+    const p2 = sendTranslate(PAYLOAD);
+
+    // Esperar a que ambos mensajes lleguen al punto de fetch/espera
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    resolveFetch(groqResponse(TRANSLATION));
+
+    const [r1, r2] = await Promise.all([p1, p2]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(r1.success).toBe(true);
+    expect(r2.success).toBe(true);
+    // Exactamente uno de los dos es el dueño de la llamada (cached:false);
+    // el otro se suma a la promesa en vuelo (cached:true).
+    expect([r1.cached, r2.cached].sort()).toEqual([false, true]);
+  });
+
+  it("does not collapse concurrent requests with different keys", async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(groqResponse(TRANSLATION)));
+
+    const [r1, r2] = await Promise.all([
+      sendTranslate(PAYLOAD),
+      sendTranslate({ ...PAYLOAD, text: "river" }),
+    ]);
+
+    expect(r1.success).toBe(true);
+    expect(r2.success).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
