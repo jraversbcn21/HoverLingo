@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** v0.2.0 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests. 56 unit tests. Uploaded to Chrome Web Store.
+**Current state:** v0.2.0 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests, on-demand full-sentence translation from the tooltip. 74 unit tests. 0.2.0 uploaded to Chrome Web Store (sentence feature and Catalan ship in 0.2.1).
 
 ---
 
@@ -45,9 +45,9 @@ hoverlingo/
 │   │   └── cache-l2.ts                   # L2 cache: chrome.storage.local, LRU, 5000 entries, TTL 24h
 │   ├── content/
 │   │   ├── index.ts                      # Entry point, orchestrator, retry (6x exp backoff), delta stats, request gen guard
-│   │   ├── hover-detector.ts             # Debounce 300ms, mouse/keyboard/scroll events, state machine, MutationObserver
-│   │   ├── text-extractor.ts             # caretRangeFromPoint, word expansion, sentence extraction, selection with hit test
-│   │   ├── tooltip-renderer.ts           # Floating UI positioning, dark/light/RTL, skeleton, error feedback, accessibility
+│   │   ├── hover-detector.ts             # Debounce 300ms, mouse/keyboard/scroll events, state machine, MutationObserver, isInTooltip() guards (pointer inside tooltip never idles it)
+│   │   ├── text-extractor.ts             # caretRangeFromPoint, word expansion, block-level sentence extraction (TreeWalker across inline elements), selection with hit test
+│   │   ├── tooltip-renderer.ts           # Floating UI positioning, dark/light/RTL, skeleton, error feedback, accessibility, "→ frase completa" button + sentence section (interactive tooltip)
 │   │   ├── cache-l1.ts                   # L1 cache: Map, key-based API, LRU, 1000 entries, TTL 30min, dedup
 │   │   ├── word-highlight.ts             # Yellow overlay highlighting on hovered word via Range.getClientRects()
 │   │   └── styles.css                    # Tooltip styles: animations, themes, RTL, errors, scrollbar
@@ -59,11 +59,14 @@ hoverlingo/
 │       ├── cache-l1.test.ts              # 8 tests: key-based API, lang/mode/context isolation, TTL, LRU, dedup
 │       ├── cache-l2.test.ts              # 4 tests: get/set, eviction on overflow, key prefix isolation
 │       ├── prompts.test.ts               # 11 tests: system prompt, user prompt (quick + learning), language fallback, explanation language
-│       ├── text-extractor.test.ts        # 6 tests: selection hit test, truncation, caretRangeFromPoint absence
+│       ├── text-extractor.test.ts        # 13 tests: selection hit test, truncation, caretRangeFromPoint absence, block-level sentence extraction across inline elements
 │       ├── cache-key.test.ts             # 5 tests: determinism, context/model/lang/mode isolation, empty hash
 │       ├── extract-json.test.ts          # 8 tests: think blocks, fences, nested braces, trailing text, truncated
 │       ├── settings-validation.test.ts   # 7 tests: valid shapes, type rejection, clamping, allowlist
-│       └── service-worker.test.ts        # 7 tests: SW message handling (5 caracterización + 2 request collapsing)
+│       ├── service-worker.test.ts        # 7 tests: SW message handling (5 caracterización + 2 request collapsing)
+│       ├── hover-detector.test.ts        # 2 tests: isInTooltip() guard
+│       ├── hover-detector-events.test.ts # 5 tests: tooltip pointer/scroll/mutation guards via real DOM events
+│       └── tooltip-renderer.test.ts      # 4 tests: sentence button render/click/skeleton/error states
 ├── public/_locales/                      # EN/ES/CA i18n messages for popup + manifest name/description
 └── dist/                                 # Build output (loaded as unpacked extension)
 ```
@@ -93,6 +96,8 @@ Content Script (index.ts)
   │                 │         on "Extension context invalidated", "receiving end does not exist", "message port closed"
   │                 └── On success → L1 set → update tooltip, record translation stat (delta)
   │                       On error → show error message in tooltip (API key, timeout, generic)
+  ├── Sentence on demand: tooltip button "→ frase completa" → onTranslateSentence(sentence)
+  │     └── Same pipeline with text = sentence, mode always "quick" (L1 → dedup → TRANSLATE → updateSentence/updateSentenceError)
   │
   ▼
 Service Worker (service-worker.ts)
@@ -208,6 +213,9 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 23. **Request generation guard** — stale responses from previous hovers are discarded; cache is populated regardless.
 24. **Cross-tab request collapsing** — in-flight promise Map in SW keyed by cache key; best-effort (lost if SW dies).
 25. **Popup i18n via native chrome.i18n** — EN default + ES + CA; manifest name/description localized.
+26. **On-demand sentence translation** — "→ frase completa" button in the tooltip requests the full sentence via the same TRANSLATE message (`text = sentence`, always `mode: "quick"`); caches and request collapsing work unchanged. On-demand to protect Groq's free-tier TPM.
+27. **Block-level sentence extraction** — `extractBlockSentence()` walks the closest block ancestor with a single TreeWalker (spans inline elements, skips SCRIPT/STYLE/NOSCRIPT, newline at nested-block boundaries, `MAX_BLOCK_TEXT` fallback to node-local extraction).
+28. **Interactive tooltip** — `pointer-events: auto` + `isInTooltip()` guards in HoverDetector: mouse/scroll events inside the tooltip never idle it, tooltip's own DOM churn is excluded from the mutation threshold, page mutations don't hide it while the pointer is inside, and the button click doesn't propagate to the page.
 
 ---
 
@@ -285,7 +293,7 @@ Then in Chrome:
 ## How to Test
 
 ```powershell
-npm test              # Run all 56 unit tests once
+npm test              # Run all 74 unit tests once
 npm run test:watch    # Watch mode
 ```
 
@@ -321,6 +329,7 @@ Note: All `console.log/error/warn` statements removed from production build.
 - [x] **Fase 5 — Bug Fix (2026-07-12):** 16 pre-production bugs fixed (3 high, 8 medium, 5 low). 22 new tests. See commits `0622b6a..bf83940`.
 - [x] **Fase 6 — Manual QA Fix (2026-07-12):** 2 bugs found during manual verification of the Fase 5 build: Quick mode `max_tokens` truncation and Learning mode explanation language. 1 new test.
 - [x] **Fase 7 — Mejoras v0.2.0 (2026-08-26):** request collapsing cross-tab, i18n popup EN/ES, botón reset stats, 7 tests de integración del SW.
+- [x] **Fase 8 — Traducción de frase completa (2026-08-26):** extracción a nivel de bloque, botón "→ frase completa" en tooltip interactivo, guards del hover detector (scroll/mutaciones/puntero dentro del tooltip), 18 tests nuevos.
 
 ---
 

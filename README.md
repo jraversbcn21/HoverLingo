@@ -6,6 +6,7 @@ Hover over any word on any webpage and get instant translations. HoverLingo uses
 
 - **Hover to translate.** Point at a word for 300ms and the translation appears.
 - **Context-aware.** The surrounding sentence is sent for better disambiguation. "bank" near "river" translates differently than "bank" near "money."
+- **Full-sentence translation.** Click "→ frase completa" in the tooltip to translate the whole sentence around the word, on demand.
 - **30 target languages.** Spanish, Catalan, French, German, Japanese, Arabic, Russian, and more.
 - **3 AI models.** Pick from Qwen and GPT-OSS models via the popup.
 - **Two modes.** Quick mode gives you the translation and alternatives. Learning mode adds pronunciation, part of speech, explanation, and example usage.
@@ -91,4 +92,4 @@ Watch mode:
 npm run test:watch
 ```
 
-56 unit tests across 8 files cover cache logic, prompt building, text extraction, JSON parsing, settings validation, and service-worker message handling.
+74 unit tests across 11 files cover cache logic, prompt building, text and sentence extraction, tooltip interaction, hover-detector guards, JSON parsing, settings validation, and service-worker message handling.
