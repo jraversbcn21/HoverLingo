@@ -4,7 +4,7 @@ import { sanitizeImportedSettings } from "../shared/settings-validation";
 describe("sanitizeImportedSettings", () => {
   it("accepts a fully valid settings object", () => {
     const out = sanitizeImportedSettings({
-      groqModel: "llama-3.1-8b-instant",
+      groqModel: "openai/gpt-oss-120b",
       targetLang: "fr",
       translationMode: "learning",
       hoverDelay: 500,
@@ -12,7 +12,7 @@ describe("sanitizeImportedSettings", () => {
       disabledSites: ["example.com", "foo.org"],
     });
     expect(out).toEqual({
-      groqModel: "llama-3.1-8b-instant",
+      groqModel: "openai/gpt-oss-120b",
       targetLang: "fr",
       translationMode: "learning",
       hoverDelay: 500,

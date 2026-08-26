@@ -11,17 +11,14 @@ export const DEFAULTS = {
 
 export const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-// Modelo NO razonador de alta calidad: da traducciones excelentes sin gastar
-// tokens en un bloque <think> oculto, así cabe de sobra en el TPM del plan
-// gratuito (12k TPM ≈ ~40 hovers/min vs. ~4-5 con un razonador como Qwen).
-export const GROQ_MODEL = "llama-3.3-70b-versatile";
+// Groq decomisionó todos los modelos Llama (2026-07/08). De los que quedan,
+// Qwen 3.6 27B es el único que acepta reasoning_effort: "none" — sin bloque
+// <think>, cada hover cuesta ~250 tokens y cabe de sobra en el TPM del plan
+// gratuito. GPT-OSS solo baja a "low", así que gasta algo más por hover.
+export const GROQ_MODEL = "qwen/qwen3.6-27b";
 
 export const AVAILABLE_MODELS: Record<string, string> = {
-  "llama-3.3-70b-versatile": "Llama 3.3 70B",
-  "meta-llama/llama-4-scout-17b-16e-instruct": "Llama 4 Scout 17B",
-  "llama-3.1-8b-instant": "Llama 3.1 8B",
   "qwen/qwen3.6-27b": "Qwen 3.6 27B",
-  "qwen/qwen3-32b": "Qwen 3 32B",
   "openai/gpt-oss-120b": "GPT OSS 120B",
   "openai/gpt-oss-20b": "GPT OSS 20B",
 };

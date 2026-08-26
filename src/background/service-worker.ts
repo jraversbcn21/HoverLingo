@@ -1,5 +1,5 @@
 import type { TranslationResponse } from "../shared/types";
-import { GROQ_API_URL, GROQ_MODEL, DEFAULTS } from "../shared/constants";
+import { GROQ_API_URL, GROQ_MODEL, AVAILABLE_MODELS, DEFAULTS } from "../shared/constants";
 import { buildSystemPrompt, buildUserPrompt } from "../shared/prompts";
 import { l2Cache } from "./cache-l2";
 import { extractJson } from "../shared/extract-json";
@@ -141,7 +141,10 @@ async function getMode(): Promise<"quick" | "learning"> {
 
 async function getModel(): Promise<string> {
   const data = await chrome.storage.local.get("groqModel");
-  return data.groqModel || GROQ_MODEL;
+  const stored = data.groqModel;
+  // Los modelos decomisionados por Groq devuelven 404; si el guardado ya no
+  // está en el catálogo, usar el default sin esperar a que abran el popup.
+  return typeof stored === "string" && stored in AVAILABLE_MODELS ? stored : GROQ_MODEL;
 }
 
 async function fetchWithTimeout(
@@ -185,7 +188,14 @@ async function callGroq(
     stream: false,
   };
   if (model.startsWith("qwen/")) {
+    // "none" desactiva el razonamiento por completo: sin tokens <think>
+    // contra el TPM ni riesgo de agotar max_tokens antes del contenido.
+    requestBody.reasoning_effort = "none";
     requestBody.reasoning_format = "hidden";
+  } else if (model.startsWith("openai/")) {
+    // GPT-OSS no acepta "none"; "low" evita que el razonamiento consuma
+    // todo max_tokens y devuelva content vacío ("Empty response").
+    requestBody.reasoning_effort = "low";
   }
 
   const res = await fetchWithTimeout(
