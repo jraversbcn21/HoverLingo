@@ -6,15 +6,21 @@ type CleanupFn = () => void;
 export class TooltipRenderer {
   private tooltip: HTMLDivElement | null = null;
   private cleanupFloating: CleanupFn | null = null;
+  private currentSentence: string | null = null;
+
+  constructor(private onTranslateSentence?: (sentence: string) => void) {}
 
   show(
     x: number,
     y: number,
     originalText: string,
     data: TranslationResponse,
-    showSkeleton: boolean
+    showSkeleton: boolean,
+    sentence?: string
   ): void {
     this.hide();
+    this.currentSentence =
+      sentence && sentence !== originalText ? sentence : null;
 
     this.tooltip = document.createElement("div");
     this.tooltip.setAttribute("data-hl-tooltip", "");
@@ -35,6 +41,10 @@ export class TooltipRenderer {
     }
 
     document.body.appendChild(this.tooltip);
+
+    if (!showSkeleton) {
+      this.wireSentenceButton();
+    }
 
     const virtualEl = {
       getBoundingClientRect() {
@@ -78,13 +88,20 @@ export class TooltipRenderer {
     });
   }
 
-  updateContent(originalText: string, data: TranslationResponse): void {
+  updateContent(
+    originalText: string,
+    data: TranslationResponse,
+    sentence?: string
+  ): void {
     if (!this.tooltip) return;
+    this.currentSentence =
+      sentence && sentence !== originalText ? sentence : null;
     this.tooltip.innerHTML = this.renderContent(originalText, data);
 
     if (data.direction === "rtl") {
       this.tooltip.dir = "rtl";
     }
+    this.wireSentenceButton();
   }
 
   updateError(originalText: string, message: string): void {
@@ -95,7 +112,37 @@ export class TooltipRenderer {
     `;
   }
 
+  updateSentence(data: TranslationResponse): void {
+    const section = this.tooltip?.querySelector(".hl-sentence");
+    if (!section || !this.currentSentence) return;
+    section.innerHTML = `
+      <div class="hl-original">"${esc(this.currentSentence)}"</div>
+      <div class="hl-sentence-translation">${esc(data.translation)}</div>
+    `;
+  }
+
+  updateSentenceError(message: string): void {
+    const section = this.tooltip?.querySelector(".hl-sentence");
+    if (!section) return;
+    section.innerHTML = `<div class="hl-error">${esc(message)}</div>`;
+  }
+
+  private wireSentenceButton(): void {
+    const btn = this.tooltip?.querySelector<HTMLButtonElement>(".hl-sentence-btn");
+    if (!btn) return;
+    btn.addEventListener("click", () => {
+      const sentence = this.currentSentence;
+      if (!this.tooltip || !sentence) return;
+      const section = this.tooltip.querySelector(".hl-sentence");
+      if (section) {
+        section.innerHTML = `<div class="hl-skeleton"><span class="hl-dot">.</span><span class="hl-dot">.</span><span class="hl-dot">.</span></div>`;
+      }
+      this.onTranslateSentence?.(sentence);
+    });
+  }
+
   hide(): void {
+    this.currentSentence = null;
     if (this.tooltip) {
       this.tooltip.classList.remove("hl-visible");
       this.tooltip.classList.add("hl-hiding");
@@ -150,6 +197,10 @@ export class TooltipRenderer {
 
     if (data.example) {
       html += `<div class="hl-example">"${esc(data.example)}"</div>`;
+    }
+
+    if (this.currentSentence) {
+      html += `<div class="hl-sentence"><button type="button" class="hl-sentence-btn">→ frase completa</button></div>`;
     }
 
     return html;
