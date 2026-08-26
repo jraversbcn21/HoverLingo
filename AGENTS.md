@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** Post-Fase 4 bug fix complete (2026-07-12). 16 pre-production bugs fixed + 2 found during manual QA (Quick mode token truncation, Learning explanation language). 49 unit tests. Ready for Chrome Web Store submission.
+**Current state:** v0.2.0 — cross-tab request collapsing, popup i18n (EN/ES), stats reset button, SW integration tests. 56 unit tests. Uploaded to Chrome Web Store.
 
 ---
 
@@ -62,7 +62,9 @@ hoverlingo/
 │       ├── text-extractor.test.ts        # 6 tests: selection hit test, truncation, caretRangeFromPoint absence
 │       ├── cache-key.test.ts             # 5 tests: determinism, context/model/lang/mode isolation, empty hash
 │       ├── extract-json.test.ts          # 8 tests: think blocks, fences, nested braces, trailing text, truncated
-│       └── settings-validation.test.ts   # 7 tests: valid shapes, type rejection, clamping, allowlist
+│       ├── settings-validation.test.ts   # 7 tests: valid shapes, type rejection, clamping, allowlist
+│       └── service-worker.test.ts        # 7 tests: SW message handling (5 caracterización + 2 request collapsing)
+├── public/_locales/                      # EN/ES i18n messages for popup + manifest name/description
 └── dist/                                 # Build output (loaded as unpacked extension)
 ```
 
@@ -98,6 +100,7 @@ Service Worker (service-worker.ts)
   ├── L2 Cache (chrome.storage.local): key = text|hash(sentence)|lang|mode|model (TTL 24h, 5000 entries)
   │     ├── HIT → return cached result (propagates cached:true to content script)
   │     └── MISS →
+  │           ├── In-flight map: concurrent identical requests across tabs share one Groq call (joiners get cached:true)
   │           ├── Read API key + model from chrome.storage.local
   │           ├── Build prompts: buildSystemPrompt(targetLang) + buildUserPrompt(...)
   │           ├── POST https://api.groq.com/openai/v1/chat/completions
@@ -168,15 +171,11 @@ Learning mode adds: `pronunciation`, `partOfSpeech`, `explanation`, `example`.
 
 | Model ID | Display Name |
 |---|---|
-| `llama-3.3-70b-versatile` | Llama 3.3 70B (default) |
-| `meta-llama/llama-4-scout-17b-16e-instruct` | Llama 4 Scout 17B |
-| `llama-3.1-8b-instant` | Llama 3.1 8B |
-| `qwen/qwen3.6-27b` | Qwen 3.6 27B |
-| `qwen/qwen3-32b` | Qwen 3 32B |
+| `qwen/qwen3.6-27b` | Qwen 3.6 27B (default) |
 | `openai/gpt-oss-120b` | GPT OSS 120B |
 | `openai/gpt-oss-20b` | GPT OSS 20B |
 
-> **Default is a non-reasoning model on purpose.** Reasoning models (Qwen, GPT-OSS) generate a hidden `<think>` block that still counts toward the free-tier TPM budget (~1.5k tokens/hover), exhausting Groq's 8k TPM after just 4-5 hovers → HTTP 429 on the rest. Llama 3.3 70B doesn't reason, so each hover costs ~250 tokens and fits comfortably in the 12k TPM free-tier limit while keeping high translation quality. `reasoning_format: "hidden"` only hides the block — it does **not** stop the tokens being generated/counted.
+> Groq decommissioned all Llama models (Jul–Aug 2026). Qwen 3.6 27B runs with `reasoning_effort: "none"` (no reasoning tokens), GPT-OSS with `"low"`.
 
 Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `provider/model-name`.
 
@@ -207,6 +206,8 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 21. **Word highlight** — yellow overlay behind hovered word via `Range.getClientRects()` + `position: fixed`.
 22. **Error feedback** — tooltip shows descriptive error instead of disappearing (API key, timeout, generic).
 23. **Request generation guard** — stale responses from previous hovers are discarded; cache is populated regardless.
+24. **Cross-tab request collapsing** — in-flight promise Map in SW keyed by cache key; best-effort (lost if SW dies).
+25. **Popup i18n via native chrome.i18n** — EN default + ES; manifest name/description localized.
 
 ---
 
@@ -284,7 +285,7 @@ Then in Chrome:
 ## How to Test
 
 ```powershell
-npm test              # Run all 49 unit tests once
+npm test              # Run all 56 unit tests once
 npm run test:watch    # Watch mode
 ```
 
@@ -319,15 +320,10 @@ Note: All `console.log/error/warn` statements removed from production build.
 - [x] **Fase 4 — Avanzadas:** Learning mode, usage stats, export/import
 - [x] **Fase 5 — Bug Fix (2026-07-12):** 16 pre-production bugs fixed (3 high, 8 medium, 5 low). 22 new tests. See commits `0622b6a..bf83940`.
 - [x] **Fase 6 — Manual QA Fix (2026-07-12):** 2 bugs found during manual verification of the Fase 5 build: Quick mode `max_tokens` truncation and Learning mode explanation language. 1 new test.
+- [x] **Fase 7 — Mejoras v0.2.0 (2026-08-26):** request collapsing cross-tab, i18n popup EN/ES, botón reset stats, 7 tests de integración del SW.
 
 ---
 
 ## Future Work
 
-- [ ] Cross-tab cache sharing via SW (request collapsing across tabs)
-- [ ] Proper extension icons (replace placeholder PNGs)
-- [ ] Chrome Web Store listing preparation
-- [ ] i18n for extension UI (popup strings in multiple languages)
-- [ ] Stats reset button
-- [ ] Integration test for SW message handling
 - [ ] Migrate to `@crxjs/vite-plugin` stable release when available
