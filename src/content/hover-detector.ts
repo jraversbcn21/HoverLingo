@@ -126,6 +126,7 @@ export class HoverDetector {
 
   private onMutation = (records: MutationRecord[]): void => {
     for (const record of records) {
+      if (isInTooltip(record.target)) continue;
       this.mutationCount += record.addedNodes.length + record.removedNodes.length;
     }
 
