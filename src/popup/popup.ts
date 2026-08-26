@@ -19,6 +19,7 @@ const statHitRate = document.getElementById("statHitRate") as HTMLSpanElement;
 const topLangs = document.getElementById("topLangs") as HTMLDivElement;
 const exportBtn = document.getElementById("exportBtn") as HTMLButtonElement;
 const importBtn = document.getElementById("importBtn") as HTMLButtonElement;
+const resetStatsBtn = document.getElementById("resetStatsBtn") as HTMLButtonElement;
 
 let apiKeyDebounce: ReturnType<typeof setTimeout> | null = null;
 let currentSiteHostname = "";
@@ -281,6 +282,13 @@ window.addEventListener("pagehide", () => {
 
 exportBtn.addEventListener("click", exportSettings);
 importBtn.addEventListener("click", importSettings);
+
+resetStatsBtn.addEventListener("click", async () => {
+  if (!confirm("Reset usage stats?")) return;
+  await chrome.storage.local.remove("usageStats");
+  await loadStats();
+  showStatus("Saved", "success");
+});
 
 populateModels();
 populateLanguages();
