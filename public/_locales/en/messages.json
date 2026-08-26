@@ -1,0 +1,33 @@
+{
+  "extName": { "message": "HoverLingo" },
+  "extDesc": { "message": "Instant translation when hovering over any word" },
+  "enabledLabel": { "message": "Enabled" },
+  "disableSiteOn": {
+    "message": "Disable on $HOST$",
+    "placeholders": { "host": { "content": "$1" } }
+  },
+  "apiKeyLabel": { "message": "Groq API Key" },
+  "apiKeyHint": { "message": "Get your free API key at console.groq.com" },
+  "modelLabel": { "message": "Model" },
+  "targetLangLabel": { "message": "Target Language" },
+  "modeLabel": { "message": "Translation Mode" },
+  "modeQuick": { "message": "Quick" },
+  "modeLearning": { "message": "Learning" },
+  "hoverDelayLabel": { "message": "Hover Delay:" },
+  "statWords": { "message": "words" },
+  "statCacheHits": { "message": "cache hits" },
+  "exportBtn": { "message": "Export" },
+  "importBtn": { "message": "Import" },
+  "resetStatsBtn": { "message": "Reset stats" },
+  "resetStatsConfirm": { "message": "Reset usage stats?" },
+  "statusSaved": { "message": "Saved" },
+  "statusExported": { "message": "Exported" },
+  "statusImported": { "message": "Imported" },
+  "statusInvalidFile": { "message": "Invalid settings file" },
+  "statusImportFailed": { "message": "Failed to import" },
+  "shortcutLabel": {
+    "message": "Shortcut: $KEYS$",
+    "placeholders": { "keys": { "content": "$1" } }
+  },
+  "shortcutUnassigned": { "message": "Shortcut: unassigned (chrome://extensions/shortcuts)" }
+}

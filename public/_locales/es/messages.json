@@ -1,0 +1,33 @@
+{
+  "extName": { "message": "HoverLingo" },
+  "extDesc": { "message": "Traducción instantánea al colocar el cursor sobre cualquier palabra" },
+  "enabledLabel": { "message": "Activado" },
+  "disableSiteOn": {
+    "message": "Desactivar en $HOST$",
+    "placeholders": { "host": { "content": "$1" } }
+  },
+  "apiKeyLabel": { "message": "API Key de Groq" },
+  "apiKeyHint": { "message": "Consigue tu API key gratis en console.groq.com" },
+  "modelLabel": { "message": "Modelo" },
+  "targetLangLabel": { "message": "Idioma de destino" },
+  "modeLabel": { "message": "Modo de traducción" },
+  "modeQuick": { "message": "Rápido" },
+  "modeLearning": { "message": "Aprendizaje" },
+  "hoverDelayLabel": { "message": "Retardo del hover:" },
+  "statWords": { "message": "palabras" },
+  "statCacheHits": { "message": "aciertos de caché" },
+  "exportBtn": { "message": "Exportar" },
+  "importBtn": { "message": "Importar" },
+  "resetStatsBtn": { "message": "Restablecer stats" },
+  "resetStatsConfirm": { "message": "¿Restablecer las estadísticas de uso?" },
+  "statusSaved": { "message": "Guardado" },
+  "statusExported": { "message": "Exportado" },
+  "statusImported": { "message": "Importado" },
+  "statusInvalidFile": { "message": "Archivo de ajustes no válido" },
+  "statusImportFailed": { "message": "Error al importar" },
+  "shortcutLabel": {
+    "message": "Atajo: $KEYS$",
+    "placeholders": { "keys": { "content": "$1" } }
+  },
+  "shortcutUnassigned": { "message": "Atajo: sin asignar (chrome://extensions/shortcuts)" }
+}

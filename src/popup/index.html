@@ -14,7 +14,7 @@
 
     <section class="section">
       <div class="toggle-row">
-        <label class="field-label" for="enabledToggle">Enabled</label>
+        <label class="field-label" for="enabledToggle" data-i18n="enabledLabel">Enabled</label>
         <label class="toggle-switch">
           <input type="checkbox" id="enabledToggle" checked />
           <span class="toggle-slider"></span>
@@ -34,7 +34,7 @@
     </section>
 
     <section class="section">
-      <label class="field-label" for="groqApiKey">Groq API Key</label>
+      <label class="field-label" for="groqApiKey" data-i18n="apiKeyLabel">Groq API Key</label>
       <input
         type="password"
         id="groqApiKey"
@@ -42,33 +42,33 @@
         autocomplete="off"
       />
       <p class="field-hint">
-        <a href="https://console.groq.com/keys" target="_blank" rel="noopener">
+        <a href="https://console.groq.com/keys" target="_blank" rel="noopener" data-i18n="apiKeyHint">
           Get your free API key at console.groq.com
         </a>
       </p>
     </section>
 
     <section class="section">
-      <label class="field-label" for="groqModel">Model</label>
+      <label class="field-label" for="groqModel" data-i18n="modelLabel">Model</label>
       <select id="groqModel"></select>
     </section>
 
     <section class="section">
-      <label class="field-label" for="targetLang">Target Language</label>
+      <label class="field-label" for="targetLang" data-i18n="targetLangLabel">Target Language</label>
       <select id="targetLang"></select>
     </section>
 
     <section class="section">
-      <label class="field-label" for="translationMode">Translation Mode</label>
+      <label class="field-label" for="translationMode" data-i18n="modeLabel">Translation Mode</label>
       <select id="translationMode">
-        <option value="quick">Quick</option>
-        <option value="learning">Learning</option>
+        <option value="quick" data-i18n="modeQuick">Quick</option>
+        <option value="learning" data-i18n="modeLearning">Learning</option>
       </select>
     </section>
 
     <section class="section">
       <label class="field-label" for="hoverDelay">
-        Hover Delay: <span id="hoverDelayValue">300ms</span>
+        <span data-i18n="hoverDelayLabel">Hover Delay:</span> <span id="hoverDelayValue">300ms</span>
       </label>
       <input
         type="range"
@@ -84,20 +84,20 @@
       <div class="stats-grid">
         <div class="stat-card">
           <span class="stat-value" id="statWords">0</span>
-          <span class="stat-label">words</span>
+          <span class="stat-label" data-i18n="statWords">words</span>
         </div>
         <div class="stat-card">
           <span class="stat-value" id="statHitRate">0%</span>
-          <span class="stat-label">cache hits</span>
+          <span class="stat-label" data-i18n="statCacheHits">cache hits</span>
         </div>
       </div>
       <div class="top-langs" id="topLangs"></div>
-      <button id="resetStatsBtn" class="action-btn">Reset stats</button>
+      <button id="resetStatsBtn" class="action-btn" data-i18n="resetStatsBtn">Reset stats</button>
     </section>
 
     <section class="section actions">
-      <button id="exportBtn" class="action-btn">Export</button>
-      <button id="importBtn" class="action-btn">Import</button>
+      <button id="exportBtn" class="action-btn" data-i18n="exportBtn">Export</button>
+      <button id="importBtn" class="action-btn" data-i18n="importBtn">Import</button>
     </section>
 
     <div class="status" id="status"></div>

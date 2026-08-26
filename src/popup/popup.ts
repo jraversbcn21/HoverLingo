@@ -26,6 +26,21 @@ let currentSiteHostname = "";
 let settingsLoaded = false;
 let apiKeyDirty = false;
 
+function msg(key: string, ...subs: string[]): string {
+  return chrome.i18n.getMessage(key, subs);
+}
+
+function localize(): void {
+  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => {
+    const text = msg(el.dataset.i18n!);
+    if (text) el.textContent = text;
+  });
+  document.querySelectorAll<HTMLInputElement>("[data-i18n-placeholder]").forEach((el) => {
+    const text = msg(el.dataset.i18nPlaceholder!);
+    if (text) el.placeholder = text;
+  });
+}
+
 async function getCurrentSite(): Promise<string> {
   try {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -44,7 +59,7 @@ async function loadSiteSettings(): Promise<void> {
     return;
   }
 
-  disableSiteLabel.textContent = `Disable on ${currentSiteHostname}`;
+  disableSiteLabel.textContent = msg("disableSiteOn", currentSiteHostname);
 
   const data = await chrome.storage.local.get("disabledSites");
   const disabledSites: string[] = Array.isArray(data.disabledSites) ? data.disabledSites : [];
@@ -157,7 +172,7 @@ function exportSettings(): void {
     a.download = "hoverlingo-settings.json";
     a.click();
     URL.revokeObjectURL(url);
-    showStatus("Exported", "success");
+    showStatus(msg("statusExported"), "success");
   });
 }
 
@@ -176,16 +191,16 @@ function importSettings(): void {
       const toSave = sanitizeImportedSettings(data);
 
       if (Object.keys(toSave).length === 0) {
-        showStatus("Invalid settings file", "error");
+        showStatus(msg("statusInvalidFile"), "error");
         return;
       }
 
       await chrome.storage.local.set(toSave);
       await loadSettings();
       await loadSiteSettings();
-      showStatus("Imported", "success");
+      showStatus(msg("statusImported"), "success");
     } catch {
-      showStatus("Failed to import", "error");
+      showStatus(msg("statusImportFailed"), "error");
     }
   };
   input.click();
@@ -193,14 +208,14 @@ function importSettings(): void {
 
 async function saveSetting(key: string, value: unknown): Promise<void> {
   await chrome.storage.local.set({ [key]: value });
-  showStatus("Saved", "success");
+  showStatus(msg("statusSaved"), "success");
 }
 
 async function saveApiKey(): Promise<void> {
   if (!settingsLoaded || !apiKeyDirty) return;
   const value = apiKeyInput.value.trim();
   await chrome.storage.local.set({ groqApiKey: value });
-  showStatus("Saved", "success");
+  showStatus(msg("statusSaved"), "success");
 }
 
 function showStatus(message: string, type: "success" | "error"): void {
@@ -270,7 +285,7 @@ disableSiteToggle.addEventListener("change", async () => {
   }
 
   await chrome.storage.local.set({ disabledSites });
-  showStatus("Saved", "success");
+  showStatus(msg("statusSaved"), "success");
 });
 
 window.addEventListener("pagehide", () => {
@@ -284,12 +299,13 @@ exportBtn.addEventListener("click", exportSettings);
 importBtn.addEventListener("click", importSettings);
 
 resetStatsBtn.addEventListener("click", async () => {
-  if (!confirm("Reset usage stats?")) return;
+  if (!confirm(msg("resetStatsConfirm"))) return;
   await chrome.storage.local.remove("usageStats");
   await loadStats();
-  showStatus("Saved", "success");
+  showStatus(msg("statusSaved"), "success");
 });
 
+localize();
 populateModels();
 populateLanguages();
 loadSiteSettings();
@@ -299,6 +315,6 @@ loadStats();
 chrome.commands.getAll((commands) => {
   const cmd = commands.find((c) => c.name === "toggle-hoverlingo");
   shortcutHint.textContent = cmd && cmd.shortcut
-    ? `Shortcut: ${cmd.shortcut}`
-    : "Shortcut: sin asignar (chrome://extensions/shortcuts)";
+    ? msg("shortcutLabel", cmd.shortcut)
+    : msg("shortcutUnassigned");
 });
