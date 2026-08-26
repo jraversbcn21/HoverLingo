@@ -1,4 +1,4 @@
-export interface HoverCallback {
+interface HoverCallback {
   (x: number, y: number): void;
 }
 

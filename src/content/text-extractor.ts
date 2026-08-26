@@ -1,7 +1,7 @@
 const WORD_REGEX = /\p{L}[\p{L}\p{M}'-]*/u;
 const PUNCTUATION_STRIP = /^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu;
 
-export interface ExtractedText {
+interface ExtractedText {
   word: string;
   sentence: string;
   isSelection: boolean;

@@ -1,10 +1,6 @@
 export const DEFAULTS = {
   TARGET_LANG: "es",
   MODE: "quick" as const,
-  HOVER_DELAY: 300,
-  ENABLED: true,
-  L1_CACHE_MAX: 1000,
-  L1_CACHE_TTL: 30 * 60 * 1000,
   L2_CACHE_MAX: 5000,
   L2_CACHE_TTL: 24 * 60 * 60 * 1000,
 };
