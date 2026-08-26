@@ -35,7 +35,7 @@ hoverlingo/
 ├── src/
 │   ├── shared/
 │   │   ├── types.ts                      # Interfaces + TARGET_LANGUAGES (30 langs) + StorageData
-│   │   ├── constants.ts                  # DEFAULTS, GROQ_API_URL, GROQ_MODEL, AVAILABLE_MODELS (7)
+│   │   ├── constants.ts                  # DEFAULTS, GROQ_API_URL, GROQ_MODEL, AVAILABLE_MODELS (3)
 │   │   ├── prompts.ts                    # buildSystemPrompt(), buildUserPrompt()
 │   │   ├── cache-key.ts                  # buildCacheKey() with sentence context hash + model
 │   │   ├── extract-json.ts               # Robust JSON parser: <think> strip, balanced braces, fences
@@ -116,7 +116,7 @@ Service Worker (service-worker.ts)
 Popup (popup.ts)
   ├── Reads/writes directly to chrome.storage.local (no SW dependency)
   ├── Saves on: input (debounce 500ms, only if settingsLoaded + apiKeyDirty), change, blur, pagehide (guarded)
-  ├── Settings: groqApiKey, groqModel (7 options), targetLang, translationMode, hoverDelay, enabled, disableSiteToggle
+  ├── Settings: groqApiKey, groqModel (3 options), targetLang, translationMode, hoverDelay, enabled, disableSiteToggle
   ├── Import: validates types via sanitizeImportedSettings(); Export: includes all 6 defaults
   ├── Model fallback: resets to default if stored model absent from catalog
   ├── Stats: words translated, cache hit rate %, top 3 source languages
@@ -188,7 +188,7 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 3. **Popup writes storage directly** — avoids SW lifecycle dependency for saving settings.
 4. **Two-level cache** — L1 (Map, memory) for instant hits; L2 (chrome.storage) for persistence across sessions/tabs. Cache key includes `text|hash(sentence)|targetLang|mode|model` for proper disambiguation.
 5. **Retry on SW invalidation** — MV3 terminates SW aggressively. Content script retries up to 6x with exponential backoff (300ms base). Also retries on "message port closed".
-6. **Model selector in popup** — user picks from 7 Groq models. Stored model validated on popup open; reset to default if absent from catalog.
+6. **Model selector in popup** — user picks from 3 Groq models. Stored model validated on popup open; reset to default if absent from catalog.
 7. **Toggle on/off** — popup has an Enabled switch. HoverDetector.setEnabled() stops all event processing.
 8. **Per-site disable** — blacklist stored as `disabledSites: string[]`. Uses top-level hostname via same-origin check + SW fallback for cross-origin iframes. Toast only in top frame.
 9. **Floating UI only** — no Tippy.js, no Popper. Minimal deps.
@@ -218,7 +218,7 @@ All data in `chrome.storage.local`:
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `groqApiKey` | `string` | `""` | User's Groq API key (never exported) |
-| `groqModel` | `string` | `llama-3.3-70b-versatile` | Active Groq model ID |
+| `groqModel` | `string` | `qwen/qwen3.6-27b` | Active Groq model ID |
 | `targetLang` | `string` | `es` | ISO 639-1 target language code |
 | `translationMode` | `string` | `quick` | `"quick"` or `"learning"` |
 | `hoverDelay` | `number` | `300` | Debounce delay in ms (100-1000) |
