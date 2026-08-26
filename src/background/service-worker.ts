@@ -304,6 +304,8 @@ async function callGroqWithRetry(
     }
   }
 
+  // Inalcanzable por construcción (toda rama del catch lanza en el último
+  // intento), pero TS no puede probarlo y exige un cierre del flujo.
   throw new Error("Max retries exhausted");
 }
 

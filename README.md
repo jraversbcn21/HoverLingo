@@ -1,12 +1,12 @@
 # HoverLingo
 
-Hover over any word on any webpage and get instant translations. HoverLingo uses Groq AI to deliver context-aware translations in 30 languages directly in a tooltip next to your cursor. No clicks, no new tabs, no interruptions.
+Hover over any word on any webpage and get instant translations. HoverLingo uses Groq AI to deliver context-aware translations in 29 languages directly in a tooltip next to your cursor. No clicks, no new tabs, no interruptions.
 
 ## Features
 
 - **Hover to translate.** Point at a word for 300ms and the translation appears.
 - **Context-aware.** The surrounding sentence is sent for better disambiguation. "bank" near "river" translates differently than "bank" near "money."
-- **30 target languages.** Spanish, French, German, Japanese, Arabic, Russian, and more.
+- **29 target languages.** Spanish, French, German, Japanese, Arabic, Russian, and more.
 - **3 AI models.** Pick from Qwen and GPT-OSS models via the popup.
 - **Two modes.** Quick mode gives you the translation and alternatives. Learning mode adds pronunciation, part of speech, explanation, and example usage.
 - **Instant cache.** Already translated a word? It appears instantly from local cache with no API call.
