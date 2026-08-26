@@ -42,4 +42,5 @@ export const TARGET_LANGUAGES: Record<string, string> = {
   cs: "Czech",
   ro: "Romanian",
   hu: "Hungarian",
+  ca: "Catalan",
 };

@@ -9,6 +9,7 @@ const LANGUAGE_SCRIPT: Record<string, string> = {
   es: "latin", en: "latin", fr: "latin", de: "latin", it: "latin", pt: "latin",
   nl: "latin", pl: "latin", sv: "latin", da: "latin", no: "latin", fi: "latin",
   cs: "latin", ro: "latin", hu: "latin", tr: "latin", vi: "latin", id: "latin",
+  ca: "latin",
   ru: "cyrillic", uk: "cyrillic",
   ar: "arabic", fa: "arabic",
   he: "hebrew",

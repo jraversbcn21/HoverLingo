@@ -34,7 +34,7 @@ hoverlingo/
 ├── public/icons/                         # Placeholder PNG icons (16, 48, 128)
 ├── src/
 │   ├── shared/
-│   │   ├── types.ts                      # TranslationResponse + TranslationMode + TARGET_LANGUAGES (29 langs)
+│   │   ├── types.ts                      # TranslationResponse + TranslationMode + TARGET_LANGUAGES (30 langs)
 │   │   ├── constants.ts                  # DEFAULTS, GROQ_API_URL, GROQ_MODEL, AVAILABLE_MODELS (3)
 │   │   ├── prompts.ts                    # buildSystemPrompt(), buildUserPrompt()
 │   │   ├── cache-key.ts                  # buildCacheKey() with sentence context hash + model
