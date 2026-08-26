@@ -1,10 +1,3 @@
-export interface TranslationRequest {
-  text: string;
-  sentence: string;
-  targetLang: string;
-  mode: TranslationMode;
-}
-
 export interface TranslationResponse {
   translation: string;
   sourceLanguage: string;
@@ -15,26 +8,6 @@ export interface TranslationResponse {
   partOfSpeech?: string;
   explanation?: string;
   example?: string;
-}
-
-export interface CachedEntry {
-  response: TranslationResponse;
-  timestamp: number;
-}
-
-export interface StorageData {
-  groqApiKey?: string;
-  groqModel?: string;
-  targetLang?: string;
-  translationMode?: TranslationMode;
-  disabledSites?: string[];
-  hoverDelay?: number;
-  enabled?: boolean;
-  usageStats?: {
-    wordsTranslated: number;
-    cacheHits: number;
-    topLanguages: Record<string, number>;
-  };
 }
 
 export type TranslationMode = "quick" | "learning";

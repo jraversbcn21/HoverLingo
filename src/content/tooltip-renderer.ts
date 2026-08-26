@@ -29,7 +29,7 @@ export class TooltipRenderer {
     this.tooltip.classList.add(mode);
 
     if (showSkeleton) {
-      this.tooltip.innerHTML = this.renderSkeleton(originalText, data.direction);
+      this.tooltip.innerHTML = this.renderSkeleton(originalText);
     } else {
       this.tooltip.innerHTML = this.renderContent(originalText, data);
     }
@@ -112,11 +112,7 @@ export class TooltipRenderer {
     }
   }
 
-  isVisible(): boolean {
-    return this.tooltip !== null;
-  }
-
-  private renderSkeleton(originalText: string, direction: string): string {
+  private renderSkeleton(originalText: string): string {
     return `
       <div class="hl-original">${esc(originalText)}</div>
       <div class="hl-skeleton">

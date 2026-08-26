@@ -35,10 +35,6 @@ function localize(): void {
     const text = msg(el.dataset.i18n!);
     if (text) el.textContent = text;
   });
-  document.querySelectorAll<HTMLInputElement>("[data-i18n-placeholder]").forEach((el) => {
-    const text = msg(el.dataset.i18nPlaceholder!);
-    if (text) el.placeholder = text;
-  });
 }
 
 async function getCurrentSite(): Promise<string> {

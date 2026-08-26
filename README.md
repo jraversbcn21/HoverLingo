@@ -7,7 +7,7 @@ Hover over any word on any webpage and get instant translations. HoverLingo uses
 - **Hover to translate.** Point at a word for 300ms and the translation appears.
 - **Context-aware.** The surrounding sentence is sent for better disambiguation. "bank" near "river" translates differently than "bank" near "money."
 - **30 target languages.** Spanish, French, German, Japanese, Arabic, Russian, and more.
-- **7 AI models.** Pick from Qwen, Llama, and GPT models via the popup.
+- **3 AI models.** Pick from Qwen and GPT-OSS models via the popup.
 - **Two modes.** Quick mode gives you the translation and alternatives. Learning mode adds pronunciation, part of speech, explanation, and example usage.
 - **Instant cache.** Already translated a word? It appears instantly from local cache with no API call.
 - **Text selection.** Select any phrase and hover to translate the whole thing.
@@ -15,6 +15,8 @@ Hover over any word on any webpage and get instant translations. HoverLingo uses
 - **Keyboard shortcut.** Press `Ctrl+Shift+K` (`Cmd+Shift+K` on Mac) to toggle on and off.
 - **Dark mode.** Tooltip adapts to your system theme automatically.
 - **Export and import.** Backup your settings as a JSON file and restore them anywhere.
+- **Localized popup.** The settings popup follows your browser language (English and Spanish).
+- **Usage stats.** See words translated, cache hit rate, and top languages — with a one-click reset.
 - **No tracking, no ads, no backend.** Everything runs locally in your browser.
 
 ## Installation
@@ -66,7 +68,7 @@ Open the popup by clicking the HoverLingo icon in your browser toolbar.
 | Setting | Description |
 |---------|-------------|
 | Groq API Key | Your free API key from console.groq.com |
-| Model | Choose from 7 Groq models (Llama 3.3 70B is the default) |
+| Model | Choose from 3 Groq models (Qwen 3.6 27B is the default) |
 | Target Language | The language you want translations in |
 | Translation Mode | Quick (fast, minimal) or Learning (detailed with pronunciation and examples) |
 | Hover Delay | How long you need to hover before the tooltip appears (100ms to 1000ms) |
@@ -89,4 +91,4 @@ Watch mode:
 npm run test:watch
 ```
 
-26 unit tests cover cache logic, prompt building, text extraction, and cache persistence.
+56 unit tests across 8 files cover cache logic, prompt building, text extraction, JSON parsing, settings validation, and service-worker message handling.
