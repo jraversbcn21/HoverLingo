@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** v0.2.1 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests, on-demand full-sentence translation from the tooltip. 74 unit tests. 0.2.0 published on the Chrome Web Store (2026-08-27); sentence feature and Catalan ship in 0.2.1.
+**Current state:** v0.2.1 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests, on-demand full-sentence translation from the tooltip. 74 unit tests. 0.2.0 published on the Chrome Web Store (2026-08-27); 0.2.1 (sentence feature, Catalan, localized sentence button) submitted 2026-10-15.
 
 ---
 
