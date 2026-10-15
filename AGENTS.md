@@ -336,3 +336,4 @@ Note: All `console.log/error/warn` statements removed from production build.
 ## Future Work
 
 - [ ] Migrate to `@crxjs/vite-plugin` stable release when available
+- [ ] Sentence-specific prompt: on-demand sentence translation reuses the word-framed prompt, sending the sentence as both WORD and CONTEXT (duplicated tokens). A dedicated prompt would save tokens against Groq free-tier TPM.
