@@ -201,7 +201,7 @@ export class TooltipRenderer {
     }
 
     if (this.currentSentence) {
-      html += `<div class="hl-sentence"><button type="button" class="hl-sentence-btn">→ frase completa</button></div>`;
+      html += `<div class="hl-sentence"><button type="button" class="hl-sentence-btn">${esc(chrome.i18n.getMessage("sentenceButton"))}</button></div>`;
     }
 
     return html;

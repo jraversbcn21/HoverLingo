@@ -29,5 +29,6 @@
     "message": "Shortcut: $KEYS$",
     "placeholders": { "keys": { "content": "$1" } }
   },
-  "shortcutUnassigned": { "message": "Shortcut: unassigned (chrome://extensions/shortcuts)" }
+  "shortcutUnassigned": { "message": "Shortcut: unassigned (chrome://extensions/shortcuts)" },
+  "sentenceButton": { "message": "→ full sentence" }
 }

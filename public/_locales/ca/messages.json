@@ -29,5 +29,6 @@
     "message": "Drecera: $KEYS$",
     "placeholders": { "keys": { "content": "$1" } }
   },
-  "shortcutUnassigned": { "message": "Drecera: sense assignar (chrome://extensions/shortcuts)" }
+  "shortcutUnassigned": { "message": "Drecera: sense assignar (chrome://extensions/shortcuts)" },
+  "sentenceButton": { "message": "→ frase completa" }
 }

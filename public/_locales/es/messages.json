@@ -29,5 +29,6 @@
     "message": "Atajo: $KEYS$",
     "placeholders": { "keys": { "content": "$1" } }
   },
-  "shortcutUnassigned": { "message": "Atajo: sin asignar (chrome://extensions/shortcuts)" }
+  "shortcutUnassigned": { "message": "Atajo: sin asignar (chrome://extensions/shortcuts)" },
+  "sentenceButton": { "message": "→ frase completa" }
 }

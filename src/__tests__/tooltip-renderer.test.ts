@@ -21,6 +21,9 @@ describe("TooltipRenderer sentence section", () => {
       unobserve() {}
       disconnect() {}
     };
+    (globalThis as { chrome?: unknown }).chrome = {
+      i18n: { getMessage: (key: string) => (key === "sentenceButton" ? "→ full sentence" : "") },
+    };
   });
 
   beforeEach(() => {
@@ -35,7 +38,7 @@ describe("TooltipRenderer sentence section", () => {
 
     const btn = document.querySelector<HTMLButtonElement>(".hl-sentence-btn");
     expect(btn).not.toBeNull();
-    expect(btn!.textContent).toBe("→ frase completa");
+    expect(btn!.textContent).toBe("→ full sentence");
 
     btn!.click();
     expect(calls).toEqual(["حفظ تفاصيل البطاقة"]);
