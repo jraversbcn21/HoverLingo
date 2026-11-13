@@ -1,5 +1,5 @@
 import { HoverDetector, HoverState } from "./hover-detector";
-import { extractTextAt, getWordRangeAt } from "./text-extractor";
+import { extractTextAt } from "./text-extractor";
 import { TooltipRenderer } from "./tooltip-renderer";
 import { l1Cache } from "./cache-l1";
 import type { TranslationResponse } from "./cache-l1";
@@ -288,9 +288,8 @@ function onHoverReady(x: number, y: number): void {
   shownKey = cacheKey;
   const gen = requestGeneration;
 
-  const wordRange = getWordRangeAt(x, y);
-  if (wordRange) {
-    wordHighlight.show(wordRange);
+  if (extracted.wordRange) {
+    wordHighlight.show(extracted.wordRange);
   }
 
   const sentenceForTooltip = extracted.isSelection ? undefined : extracted.sentence;

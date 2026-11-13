@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** v0.2.1 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests, on-demand full-sentence translation from the tooltip. 83 unit tests. 0.2.0 published on the Chrome Web Store (2026-08-27); 0.2.1 (sentence feature, Catalan, localized sentence button) submitted 2026-10-15.
+**Current state:** v0.2.1 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests, on-demand full-sentence translation from the tooltip. 85 unit tests. 0.2.0 published on the Chrome Web Store (2026-08-27); 0.2.1 (sentence feature, Catalan, localized sentence button) submitted 2026-10-15.
 
 ---
 
@@ -46,7 +46,7 @@ hoverlingo/
 │   ├── content/
 │   │   ├── index.ts                      # Entry point, orchestrator, retry (6x exp backoff), delta stats, request gen guard
 │   │   ├── hover-detector.ts             # Debounce 300ms, mouse/keyboard/scroll events, state machine, MutationObserver (connected only while hovering), isInTooltip() guards (pointer inside tooltip never idles it)
-│   │   ├── text-extractor.ts             # caretRangeFromPoint, word expansion, block-level sentence extraction (TreeWalker across inline elements), selection with hit test
+│   │   ├── text-extractor.ts             # single caretRangeFromPoint hit-test per hover (word + highlight range), word expansion, block-level sentence extraction (TreeWalker across inline elements), selection with hit test
 │   │   ├── tooltip-renderer.ts           # Floating UI positioning, dark/light/RTL, skeleton, error feedback, accessibility, localized "→ full sentence" button (`sentenceButton` in `_locales`) + sentence section (interactive tooltip)
 │   │   ├── cache-l1.ts                   # L1 cache: Map, key-based API, LRU, 1000 entries, TTL 30min, dedup
 │   │   ├── word-highlight.ts             # Yellow overlay highlighting on hovered word via Range.getClientRects()
@@ -59,7 +59,7 @@ hoverlingo/
 │       ├── cache-l1.test.ts              # 8 tests: key-based API, lang/mode/context isolation, TTL, LRU, dedup
 │       ├── cache-l2.test.ts              # 6 tests: get/set, batch eviction, overwrite-without-evict, single full read, key prefix isolation
 │       ├── prompts.test.ts               # 11 tests: system prompt, user prompt (quick + learning), language fallback, explanation language
-│       ├── text-extractor.test.ts        # 13 tests: selection hit test, truncation, caretRangeFromPoint absence, block-level sentence extraction across inline elements
+│       ├── text-extractor.test.ts        # 15 tests: selection hit test, truncation, caretRangeFromPoint absence, single hit-test + word range, block-level sentence extraction across inline elements
 │       ├── cache-key.test.ts             # 5 tests: determinism, context/model/lang/mode isolation, empty hash
 │       ├── extract-json.test.ts          # 8 tests: think blocks, fences, nested braces, trailing text, truncated
 │       ├── settings-validation.test.ts   # 7 tests: valid shapes, type rejection, clamping, allowlist
@@ -295,7 +295,7 @@ Then in Chrome:
 ## How to Test
 
 ```powershell
-npm test              # Run all 83 unit tests once
+npm test              # Run all 85 unit tests once
 npm run test:watch    # Watch mode
 ```
 
@@ -332,7 +332,7 @@ Note: All `console.log/error/warn` statements removed from production build.
 - [x] **Fase 6 — Manual QA Fix (2026-07-12):** 2 bugs found during manual verification of the Fase 5 build: Quick mode `max_tokens` truncation and Learning mode explanation language. 1 new test.
 - [x] **Fase 7 — Mejoras v0.2.0 (2026-08-26):** request collapsing cross-tab, i18n popup EN/ES, botón reset stats, 7 tests de integración del SW.
 - [x] **Fase 8 — Traducción de frase completa (2026-08-26):** extracción a nivel de bloque, botón "→ frase completa" en tooltip interactivo, guards del hover detector (scroll/mutaciones/puntero dentro del tooltip), 18 tests nuevos.
-- [x] **Fase 9 — Rendimiento (2026-11-13):** L2 con índice de claves en memoria y expulsión por lotes (sin `get(null)` por escritura), SW responde antes de persistir en L2, MutationObserver conectado solo durante `hovering`, re-hover sobre la misma palabra no reconstruye tooltip ni repite petición, fix de rechazo no manejado en `l1Cache.setPending`, fix del tooltip fuera de pantalla tras scroll (`strategy: "fixed"`). 9 tests nuevos.
+- [x] **Fase 9 — Rendimiento (2026-11-13):** L2 con índice de claves en memoria y expulsión por lotes (sin `get(null)` por escritura), SW responde antes de persistir en L2, MutationObserver conectado solo durante `hovering`, re-hover sobre la misma palabra no reconstruye tooltip ni repite petición, fix de rechazo no manejado en `l1Cache.setPending`, fix del tooltip fuera de pantalla tras scroll (`strategy: "fixed"`), un solo hit-test `caretRangeFromPoint` por hover (antes 3). 11 tests nuevos.
 
 ---
 

@@ -5,46 +5,35 @@ interface ExtractedText {
   word: string;
   sentence: string;
   isSelection: boolean;
+  /** Rango de la palabra bajo el cursor, para el highlight (null si no hay). */
+  wordRange: Range | null;
 }
 
-function getTextNodeAt(x: number, y: number): Text | null {
-  if (document.caretRangeFromPoint) {
-    const range = document.caretRangeFromPoint(x, y);
-    if (range && range.startContainer.nodeType === Node.TEXT_NODE) {
-      return range.startContainer as Text;
-    }
-  }
-
-  return null;
+interface WordAtPoint {
+  textNode: Text;
+  word: string;
+  start: number;
+  end: number;
 }
 
-function getCursorOffsetInNode(x: number, y: number, textNode: Text): number {
-  if (document.caretRangeFromPoint) {
-    const range = document.caretRangeFromPoint(x, y);
-    if (range && range.startContainer === textNode) {
-      return range.startOffset;
-    }
-  }
+// Un único hit-test (caretRangeFromPoint) por hover: de él salen el nodo,
+// la palabra y su rango, compartidos por la traducción y el highlight.
+function wordAtPoint(x: number, y: number): WordAtPoint | null {
+  if (!document.caretRangeFromPoint) return null;
+  const caret = document.caretRangeFromPoint(x, y);
+  if (!caret || caret.startContainer.nodeType !== Node.TEXT_NODE) return null;
 
-  const rect = document.createRange();
-  rect.setStart(textNode, 0);
-  rect.setEnd(textNode, textNode.length);
-  const rects = rect.getClientRects();
+  const textNode = caret.startContainer as Text;
+  const { word, start, end } = expandToWord(textNode.textContent || "", caret.startOffset);
+  return { textNode, word, start, end };
+}
 
-  for (let i = 0; i < rects.length; i++) {
-    const r = rects[i];
-    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
-      const ratio = (x - r.left) / r.width;
-      const length = textNode.length;
-      const sliceLength = Math.max(1, Math.floor(length / rects.length));
-      const start = i * sliceLength;
-      const end = Math.min(start + sliceLength, length);
-      const offset = start + Math.floor((end - start) * ratio);
-      return Math.max(0, Math.min(offset, length));
-    }
-  }
-
-  return 0;
+function rangeOf(hit: WordAtPoint | null): Range | null {
+  if (!hit || hit.start >= hit.end) return null;
+  const range = document.createRange();
+  range.setStart(hit.textNode, hit.start);
+  range.setEnd(hit.textNode, hit.end);
+  return range;
 }
 
 function expandToWord(text: string, offset: number): { word: string; start: number; end: number } {
@@ -205,47 +194,22 @@ export function extractTextAt(x: number, y: number): ExtractedText | null {
       word: selectedText,
       sentence: selectedText,
       isSelection: true,
+      wordRange: rangeOf(wordAtPoint(x, y)),
     };
   }
 
-  const textNode = getTextNodeAt(x, y);
-  if (!textNode) return null;
+  const hit = wordAtPoint(x, y);
+  if (!hit || !hit.word) return null;
 
-  const offset = getCursorOffsetInNode(x, y, textNode);
-  const text = textNode.textContent || "";
+  const normalizedWord = hit.word.replace(PUNCTUATION_STRIP, "").trim();
+  if (!normalizedWord) return null;
 
-  const { word, start, end } = expandToWord(text, offset);
-
-  if (!word || word.length === 0) return null;
-
-  const normalizedWord = word.replace(PUNCTUATION_STRIP, "").trim();
-  if (!normalizedWord || normalizedWord.length === 0) return null;
-
-  const sentence = extractBlockSentence(textNode, start, end);
+  const sentence = extractBlockSentence(hit.textNode, hit.start, hit.end);
 
   return {
     word: normalizedWord,
     sentence: sentence || normalizedWord,
     isSelection: false,
+    wordRange: rangeOf(hit),
   };
-}
-
-export function getWordRangeAt(x: number, y: number): Range | null {
-  if (document.caretRangeFromPoint) {
-    const range = document.caretRangeFromPoint(x, y);
-    if (range && range.startContainer.nodeType === Node.TEXT_NODE) {
-      const textNode = range.startContainer as Text;
-      const offset = range.startOffset;
-      const text = textNode.textContent || "";
-      const { start, end } = expandToWord(text, offset);
-
-      if (start < end) {
-        const wordRange = document.createRange();
-        wordRange.setStart(textNode, start);
-        wordRange.setEnd(textNode, end);
-        return wordRange;
-      }
-    }
-  }
-  return null;
 }

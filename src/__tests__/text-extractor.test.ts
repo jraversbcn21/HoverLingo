@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { extractTextAt, extractBlockSentence } from "../content/text-extractor";
 
 describe("Text Extractor", () => {
@@ -100,6 +100,57 @@ describe("Text Extractor", () => {
 
     const result = extractTextAt(5, 5);
     expect(result).toBeNull();
+  });
+
+  describe("single hit-test per hover", () => {
+    type CaretDoc = { caretRangeFromPoint?: (x: number, y: number) => Range | null };
+
+    // jsdom no implementa caretRangeFromPoint: x se interpreta como offset
+    function stubCaret(node: Text): ReturnType<typeof vi.fn> {
+      const fn = vi.fn((x: number) => {
+        const r = document.createRange();
+        r.setStart(node, x);
+        r.collapse(true);
+        return r;
+      });
+      (document as unknown as CaretDoc).caretRangeFromPoint = fn;
+      return fn;
+    }
+
+    afterEach(() => {
+      delete (document as unknown as CaretDoc).caretRangeFromPoint;
+      window.getSelection()?.removeAllRanges();
+    });
+
+    it("returns the word, its sentence and its range from one caretRangeFromPoint call", () => {
+      document.body.innerHTML = "<p>The bank, near the river.</p>";
+      const node = document.querySelector("p")!.firstChild as Text;
+      const caret = stubCaret(node);
+
+      const result = extractTextAt(6, 0); // dentro de "bank"
+
+      expect(caret).toHaveBeenCalledTimes(1);
+      expect(result!.word).toBe("bank");
+      expect(result!.sentence).toBe("The bank, near the river");
+      expect(result!.wordRange!.toString()).toBe("bank");
+    });
+
+    it("keeps the hovered-word range when translating a selection", () => {
+      document.body.innerHTML = "<p>hello world</p>";
+      const node = document.querySelector("p")!.firstChild as Text;
+      stubCaret(node);
+      const sel = document.createRange();
+      sel.selectNodeContents(node);
+      window.getSelection()!.removeAllRanges();
+      window.getSelection()!.addRange(sel);
+      mockSelectionRect(0, 0, 100, 20);
+
+      const result = extractTextAt(8, 10); // dentro de "world"
+
+      expect(result!.isSelection).toBe(true);
+      expect(result!.word).toBe("hello world");
+      expect(result!.wordRange!.toString()).toBe("world");
+    });
   });
 
   describe("extractBlockSentence", () => {
