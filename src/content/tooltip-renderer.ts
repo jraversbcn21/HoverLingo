@@ -184,7 +184,7 @@ export class TooltipRenderer {
       html += `
         <div class="hl-meta">
           <span class="hl-pos">${esc(data.partOfSpeech)}</span>
-          ${data.pronunciation ? `<span class="hl-pron">${esc(data.pronunciation)}</span>` : ""}
+          <span class="hl-pron">${esc(data.pronunciation)}</span>
         </div>
       `;
     }

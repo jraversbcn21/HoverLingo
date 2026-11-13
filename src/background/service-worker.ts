@@ -1,5 +1,5 @@
 import type { TranslationResponse } from "../shared/types";
-import { GROQ_API_URL, GROQ_MODEL, AVAILABLE_MODELS, DEFAULTS } from "../shared/constants";
+import { GROQ_API_URL, GROQ_MODEL, AVAILABLE_MODELS } from "../shared/constants";
 import { buildSystemPrompt, buildUserPrompt } from "../shared/prompts";
 import { l2Cache } from "./cache-l2";
 import { extractJson } from "../shared/extract-json";
@@ -133,16 +133,6 @@ function validateTranslationScript(translation: string, targetLang: string): boo
 async function getApiKey(): Promise<string | null> {
   const data = await chrome.storage.local.get("groqApiKey");
   return data.groqApiKey || null;
-}
-
-async function getTargetLang(): Promise<string> {
-  const data = await chrome.storage.local.get("targetLang");
-  return data.targetLang || DEFAULTS.TARGET_LANG;
-}
-
-async function getMode(): Promise<"quick" | "learning"> {
-  const data = await chrome.storage.local.get("translationMode");
-  return data.translationMode || DEFAULTS.MODE;
 }
 
 async function getModel(): Promise<string> {
@@ -315,8 +305,9 @@ async function handleTranslate(
   sendResponse: (response: { success: boolean; data?: TranslationResponse; error?: string; cached?: boolean }) => void
 ) {
   try {
-    const targetLang = request.targetLang || (await getTargetLang());
-    const mode = request.mode || (await getMode());
+    // El content script siempre envía targetLang y mode (los mantiene
+    // sincronizados con storage vía onChanged).
+    const { targetLang, mode } = request;
     const model = await getModel();
     const cacheKey = buildCacheKey(request.text, request.sentence || "", targetLang, mode, model);
 
