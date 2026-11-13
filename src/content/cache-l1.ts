@@ -65,8 +65,12 @@ export const l1Cache = {
 
   setPending(key: string, promise: Promise<TranslationResponse>): void {
     pendingRequests.set(key, promise);
-    promise.finally(() => {
-      pendingRequests.delete(key);
-    });
+    promise
+      .finally(() => {
+        pendingRequests.delete(key);
+      })
+      .catch(() => {
+        // el rechazo lo gestionan los suscriptores; aquí solo limpiamos
+      });
   },
 };

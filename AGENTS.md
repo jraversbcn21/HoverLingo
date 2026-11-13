@@ -4,7 +4,7 @@
 
 HoverLingo is a Chrome Extension (Manifest V3) that translates words/phrases on hover using Groq API. The tooltip appears near the cursor showing the translation with context-aware disambiguation.
 
-**Current state:** v0.2.1 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests, on-demand full-sentence translation from the tooltip. 74 unit tests. 0.2.0 published on the Chrome Web Store (2026-08-27); 0.2.1 (sentence feature, Catalan, localized sentence button) submitted 2026-10-15.
+**Current state:** v0.2.1 — cross-tab request collapsing, popup i18n (EN/ES/CA), stats reset button, SW integration tests, on-demand full-sentence translation from the tooltip. 83 unit tests. 0.2.0 published on the Chrome Web Store (2026-08-27); 0.2.1 (sentence feature, Catalan, localized sentence button) submitted 2026-10-15.
 
 ---
 
@@ -42,10 +42,10 @@ hoverlingo/
 │   │   └── settings-validation.ts        # sanitizeImportedSettings() with type guards
 │   ├── background/
 │   │   ├── service-worker.ts             # Message router + Groq API + GET_TAB_HOST + commands + callGroqWithRetry
-│   │   └── cache-l2.ts                   # L2 cache: chrome.storage.local, LRU, 5000 entries, TTL 24h
+│   │   └── cache-l2.ts                   # L2 cache: chrome.storage.local, 5000 entries, TTL 24h; lazy in-memory key index, evicts oldest 10% in batch when full
 │   ├── content/
 │   │   ├── index.ts                      # Entry point, orchestrator, retry (6x exp backoff), delta stats, request gen guard
-│   │   ├── hover-detector.ts             # Debounce 300ms, mouse/keyboard/scroll events, state machine, MutationObserver, isInTooltip() guards (pointer inside tooltip never idles it)
+│   │   ├── hover-detector.ts             # Debounce 300ms, mouse/keyboard/scroll events, state machine, MutationObserver (connected only while hovering), isInTooltip() guards (pointer inside tooltip never idles it)
 │   │   ├── text-extractor.ts             # caretRangeFromPoint, word expansion, block-level sentence extraction (TreeWalker across inline elements), selection with hit test
 │   │   ├── tooltip-renderer.ts           # Floating UI positioning, dark/light/RTL, skeleton, error feedback, accessibility, localized "→ full sentence" button (`sentenceButton` in `_locales`) + sentence section (interactive tooltip)
 │   │   ├── cache-l1.ts                   # L1 cache: Map, key-based API, LRU, 1000 entries, TTL 30min, dedup
@@ -57,16 +57,17 @@ hoverlingo/
 │   │   └── popup.css                     # Dark theme popup styles + toggle switch + stats cards + action buttons
 │   └── __tests__/
 │       ├── cache-l1.test.ts              # 8 tests: key-based API, lang/mode/context isolation, TTL, LRU, dedup
-│       ├── cache-l2.test.ts              # 4 tests: get/set, eviction on overflow, key prefix isolation
+│       ├── cache-l2.test.ts              # 6 tests: get/set, batch eviction, overwrite-without-evict, single full read, key prefix isolation
 │       ├── prompts.test.ts               # 11 tests: system prompt, user prompt (quick + learning), language fallback, explanation language
 │       ├── text-extractor.test.ts        # 13 tests: selection hit test, truncation, caretRangeFromPoint absence, block-level sentence extraction across inline elements
 │       ├── cache-key.test.ts             # 5 tests: determinism, context/model/lang/mode isolation, empty hash
 │       ├── extract-json.test.ts          # 8 tests: think blocks, fences, nested braces, trailing text, truncated
 │       ├── settings-validation.test.ts   # 7 tests: valid shapes, type rejection, clamping, allowlist
-│       ├── service-worker.test.ts        # 7 tests: SW message handling (5 caracterización + 2 request collapsing)
+│       ├── service-worker.test.ts        # 8 tests: SW message handling (5 caracterización + 2 request collapsing + L2 write failure)
 │       ├── hover-detector.test.ts        # 2 tests: isInTooltip() guard
-│       ├── hover-detector-events.test.ts # 5 tests: tooltip pointer/scroll/mutation guards via real DOM events
-│       └── tooltip-renderer.test.ts      # 4 tests: sentence button render/click/skeleton/error states
+│       ├── hover-detector-events.test.ts # 6 tests: tooltip pointer/scroll/mutation guards via real DOM events, observer only while hovering
+│       ├── content-index.test.ts         # 4 tests: re-hover on the same word does not rebuild/re-request/abort; retry after error
+│       └── tooltip-renderer.test.ts      # 5 tests: sentence button render/click/skeleton/error states, fixed positioning strategy
 ├── public/_locales/                      # EN/ES/CA i18n messages for popup + manifest name/description
 └── dist/                                 # Build output (loaded as unpacked extension)
 ```
@@ -271,6 +272,7 @@ All data in `chrome.storage.local`:
 | `StorageData.enabledSites` drift | Fixed | Schema corrected to `disabledSites`; added `usageStats` |
 | Dead "translating" state | Fixed | Removed from hover-detector type and `notifyTranslationComplete()` |
 | Quick mode always fails ("Empty response"/truncated JSON) | Fixed | `max_tokens` was 1024; reasoning model's hidden `<think>` spent the whole budget before emitting content (confirmed via `finish_reason: "length"`). Raised to 2048 for both modes. |
+| Tooltip invisible after scrolling (only word highlight shown) | Fixed | CSS uses `position: fixed` but `computePosition` used default `strategy: "absolute"`, adding page scroll to `top` → tooltip off-screen. Now `strategy: "fixed"`. |
 | Learning mode explanation returned in English despite target language | Fixed | Prompt only required `translation` to be in the target language; added explicit rule requiring `explanation` in `${langName}` too |
 
 ---
@@ -293,7 +295,7 @@ Then in Chrome:
 ## How to Test
 
 ```powershell
-npm test              # Run all 74 unit tests once
+npm test              # Run all 83 unit tests once
 npm run test:watch    # Watch mode
 ```
 
@@ -330,6 +332,7 @@ Note: All `console.log/error/warn` statements removed from production build.
 - [x] **Fase 6 — Manual QA Fix (2026-07-12):** 2 bugs found during manual verification of the Fase 5 build: Quick mode `max_tokens` truncation and Learning mode explanation language. 1 new test.
 - [x] **Fase 7 — Mejoras v0.2.0 (2026-08-26):** request collapsing cross-tab, i18n popup EN/ES, botón reset stats, 7 tests de integración del SW.
 - [x] **Fase 8 — Traducción de frase completa (2026-08-26):** extracción a nivel de bloque, botón "→ frase completa" en tooltip interactivo, guards del hover detector (scroll/mutaciones/puntero dentro del tooltip), 18 tests nuevos.
+- [x] **Fase 9 — Rendimiento (2026-11-13):** L2 con índice de claves en memoria y expulsión por lotes (sin `get(null)` por escritura), SW responde antes de persistir en L2, MutationObserver conectado solo durante `hovering`, re-hover sobre la misma palabra no reconstruye tooltip ni repite petición, fix de rechazo no manejado en `l1Cache.setPending`, fix del tooltip fuera de pantalla tras scroll (`strategy: "fixed"`). 9 tests nuevos.
 
 ---
 

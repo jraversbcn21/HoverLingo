@@ -15,6 +15,8 @@ let currentEnabled = true;
 let currentSiteDisabled = false;
 let debounceMs = 300;
 let currentModel = GROQ_MODEL;
+// Clave de caché de la traducción del tooltip visible (null si no hay).
+let shownKey: string | null = null;
 
 const renderer = new TooltipRenderer(onTranslateSentence);
 
@@ -198,6 +200,7 @@ chrome.storage.onChanged.addListener((changes) => {
 
 function onStateChange(state: HoverState): void {
   if (state === "idle") {
+    shownKey = null;
     abortCurrentRequest();
     renderer.hide();
     wordHighlight.hide();
@@ -259,17 +262,11 @@ function onTranslateSentence(sentence: string): void {
 }
 
 function onHoverReady(x: number, y: number): void {
-  abortCurrentRequest();
-  const gen = requestGeneration;
-
   const extracted = extractTextAt(x, y);
   if (!extracted || !extracted.word) {
+    abortCurrentRequest();
+    shownKey = null;
     return;
-  }
-
-  const wordRange = getWordRangeAt(x, y);
-  if (wordRange) {
-    wordHighlight.show(wordRange);
   }
 
   const cacheKey = buildCacheKey(
@@ -279,6 +276,22 @@ function onHoverReady(x: number, y: number): void {
     currentMode,
     currentModel
   );
+
+  // El cursor se detuvo de nuevo sobre la palabra cuyo tooltip ya está
+  // visible (o cargando): no reconstruir tooltip/highlight, no abortar la
+  // petición en curso, no perder la frase traducida ni inflar las stats.
+  if (cacheKey === shownKey) {
+    return;
+  }
+
+  abortCurrentRequest();
+  shownKey = cacheKey;
+  const gen = requestGeneration;
+
+  const wordRange = getWordRangeAt(x, y);
+  if (wordRange) {
+    wordHighlight.show(wordRange);
+  }
 
   const sentenceForTooltip = extracted.isSelection ? undefined : extracted.sentence;
 
@@ -302,6 +315,7 @@ function onHoverReady(x: number, y: number): void {
       })
       .catch((err) => {
         if (gen !== requestGeneration) return;
+        shownKey = null; // permitir reintentar sobre la misma palabra
         wordHighlight.hide();
         const msg = err instanceof Error ? err.message : "";
         renderer.updateError(extracted.word, tooltipErrorFor(msg));
@@ -343,6 +357,7 @@ function onHoverReady(x: number, y: number): void {
         return;
       }
       if (gen !== requestGeneration) return;
+      shownKey = null; // permitir reintentar sobre la misma palabra
       wordHighlight.hide();
       const msg = err instanceof Error ? err.message : "";
       renderer.updateError(extracted.word, tooltipErrorFor(msg));

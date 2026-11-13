@@ -353,14 +353,19 @@ async function handleTranslate(
         result.confidence = 0;
       }
 
-      await l2Cache.set(cacheKey, result);
       return result;
     })();
     inFlight.set(cacheKey, flight);
 
     try {
       const result = await flight;
+      // Responder antes de persistir: la escritura en L2 no debe sumar
+      // latencia al tooltip. La entrada sigue en inFlight hasta que termina,
+      // para que una petición idéntica inmediata no vuelva a llamar a Groq.
       sendResponse({ success: true, data: result, cached: false });
+      await l2Cache.set(cacheKey, result).catch(() => {
+        // fallo de persistencia: la traducción ya se entregó
+      });
     } finally {
       inFlight.delete(cacheKey);
     }

@@ -108,6 +108,26 @@ describe("HoverDetector tooltip guards", () => {
     expect(states).toContain("idle");
   });
 
+  it("observes DOM mutations only while hovering", () => {
+    const observe = vi.spyOn(MutationObserver.prototype, "observe");
+    const disconnect = vi.spyOn(MutationObserver.prototype, "disconnect");
+    detector.destroy();
+    detector = new HoverDetector(300, () => {}, (s) => states.push(s));
+    detector.init();
+
+    expect(observe).not.toHaveBeenCalled();
+
+    enterHoveringState();
+    expect(observe).toHaveBeenCalledTimes(1);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(states).toContain("idle");
+    expect(disconnect).toHaveBeenCalled();
+
+    observe.mockRestore();
+    disconnect.mockRestore();
+  });
+
   it("a mousemove into the tooltip cancels the pending debounce timer", () => {
     const pageEl = document.createElement("div");
     pageEl.textContent = "some page text";

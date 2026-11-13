@@ -70,31 +70,54 @@ describe("L2 Cache", () => {
     expect(result).toEqual(resp);
   });
 
-  it("evicts oldest entry when cache exceeds max", async () => {
-    // Pre-populate with entries that would trigger eviction
-    // L2 max is 5000, so fill with 5000 entries first
-    // Use a smaller batch to avoid timeout
-    const batch = 100;
-    for (let i = 0; i < batch; i++) {
-      await l2Cache.set(`fill${i}|es|quick`, makeResponse());
-    }
-
-    // Manually add enough entries to the mockStore to simulate a full cache
+  function fillStore(count: number): void {
+    // Cache llena de una sesión anterior del SW (antes de cargar el índice)
     const now = Date.now();
-    for (let i = 0; i < 5000; i++) {
+    for (let i = 0; i < count; i++) {
       mockStore.set(`hl_cache_word${i}|es|quick`, {
         response: makeResponse(),
-        timestamp: now - (5000 - i) * 1000,
+        timestamp: now - (count - i) * 1000,
       });
     }
+  }
 
-    // Next set should evict the oldest
+  function cacheSize(): number {
+    return [...mockStore.keys()].filter((k) => k.startsWith("hl_cache_")).length;
+  }
+
+  it("evicts the oldest batch when cache is full", async () => {
+    fillStore(5000);
+
     await l2Cache.set("overflow|es|quick", makeResponse());
 
-    // "word0" should be evicted (oldest)
-    const result = await l2Cache.get("word0|es|quick");
-    expect(result).toBeNull();
-  }, 10000);
+    // Lote del 10% más antiguo (word0..word499) expulsado, el resto intacto
+    expect(mockStore.has("hl_cache_word0|es|quick")).toBe(false);
+    expect(mockStore.has("hl_cache_word499|es|quick")).toBe(false);
+    expect(mockStore.has("hl_cache_word500|es|quick")).toBe(true);
+    expect(mockStore.has("hl_cache_overflow|es|quick")).toBe(true);
+    expect(cacheSize()).toBe(5000 - 500 + 1);
+  });
+
+  it("overwriting an existing key in a full cache does not evict", async () => {
+    fillStore(5000);
+
+    await l2Cache.set("word10|es|quick", makeResponse());
+
+    expect(cacheSize()).toBe(5000);
+    expect(mockStore.has("hl_cache_word0|es|quick")).toBe(true);
+  });
+
+  it("does not read the whole storage on every write", async () => {
+    const get = chrome.storage.local.get as ReturnType<typeof vi.fn>;
+    get.mockClear();
+
+    for (let i = 0; i < 5; i++) {
+      await l2Cache.set(`w${i}|es|quick`, makeResponse());
+    }
+
+    // Una sola lectura completa (carga del índice), no una por escritura
+    expect(get.mock.calls.filter(([k]) => k === null)).toHaveLength(1);
+  });
 
   it("prefixed keys avoid collisions with other storage", async () => {
     const resp = makeResponse();

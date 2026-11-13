@@ -127,9 +127,22 @@ describe("Service worker integration", () => {
     expect(res.data?.translation).toBe("casa");
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
+    // La persistencia en L2 ocurre después de responder
     const key = buildCacheKey(PAYLOAD.text, PAYLOAD.sentence, "es", "quick", DEFAULT_MODEL);
+    await vi.waitFor(() => expect(mockStore.has(`hl_cache_${key}`)).toBe(true));
     const stored = mockStore.get(`hl_cache_${key}`) as { response: TranslationResponse };
     expect(stored.response.translation).toBe("casa");
+  });
+
+  it("responds even if persisting to L2 fails", async () => {
+    fetchMock.mockResolvedValue(groqResponse(TRANSLATION));
+    const set = chrome.storage.local.set as ReturnType<typeof vi.fn>;
+    set.mockImplementationOnce(() => Promise.reject(new Error("QUOTA_BYTES exceeded")));
+
+    const res = await sendTranslate(PAYLOAD);
+
+    expect(res.success).toBe(true);
+    expect(res.data?.translation).toBe("casa");
   });
 
   it("fails cleanly when no API key is configured", async () => {

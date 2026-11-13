@@ -41,8 +41,10 @@ export class HoverDetector {
     document.addEventListener("scroll", this.onScroll, { passive: true, capture: true });
     window.addEventListener("resize", this.onResize, { passive: true });
 
+    // Solo se conecta mientras hay tooltip (estado "hovering"): observar el
+    // subárbol entero en reposo cuesta en páginas con mucho DOM churn y en
+    // cada iframe (all_frames), sin aportar nada.
     this.observer = new MutationObserver(this.onMutation);
-    this.observer.observe(document.body, { childList: true, subtree: true });
   }
 
   destroy(): void {
@@ -53,15 +55,8 @@ export class HoverDetector {
     document.removeEventListener("scroll", this.onScroll, { capture: true });
     window.removeEventListener("resize", this.onResize);
     this.clearTimer();
-
-    if (this.observer) {
-      this.observer.disconnect();
-      this.observer = null;
-    }
-    if (this.mutationTimer) {
-      clearTimeout(this.mutationTimer);
-      this.mutationTimer = null;
-    }
+    this.stopObservingMutations();
+    this.observer = null;
   }
 
   setEnabled(enabled: boolean): void {
@@ -164,7 +159,21 @@ export class HoverDetector {
   private setState(state: HoverState): void {
     if (this.state !== state) {
       this.state = state;
+      if (state === "hovering") {
+        this.observer?.observe(document.body, { childList: true, subtree: true });
+      } else {
+        this.stopObservingMutations();
+      }
       this.onStateChange(state);
     }
+  }
+
+  private stopObservingMutations(): void {
+    this.observer?.disconnect();
+    if (this.mutationTimer) {
+      clearTimeout(this.mutationTimer);
+      this.mutationTimer = null;
+    }
+    this.mutationCount = 0;
   }
 }
