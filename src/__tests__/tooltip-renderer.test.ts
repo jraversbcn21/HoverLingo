@@ -2,7 +2,16 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
+
+const { computePositionSpy } = vi.hoisted(() => ({ computePositionSpy: vi.fn() }));
+
+vi.mock("@floating-ui/dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@floating-ui/dom")>();
+  computePositionSpy.mockImplementation(actual.computePosition);
+  return { ...actual, computePosition: computePositionSpy };
+});
+
 import { TooltipRenderer } from "../content/tooltip-renderer";
 import type { TranslationResponse } from "../content/cache-l1";
 
@@ -67,6 +76,23 @@ describe("TooltipRenderer sentence section", () => {
     const renderer = new TooltipRenderer(() => {});
     renderer.show(10, 10, "hola", wordData, false);
     expect(document.querySelector(".hl-sentence-btn")).toBeNull();
+    renderer.hide();
+  });
+
+  it("positions with the 'fixed' strategy to match position:fixed in styles.css", () => {
+    // Regresión: con la estrategia por defecto ("absolute") Floating UI suma
+    // el scroll de la página; como el CSS es position:fixed, el tooltip
+    // quedaba fuera de la ventana tras hacer scroll (solo se veía el
+    // highlight). jsdom no hace layout y no puede reproducirlo, así que se
+    // verifica la opción pasada a computePosition.
+    computePositionSpy.mockClear();
+    const renderer = new TooltipRenderer(() => {});
+    renderer.show(10, 400, "hola", wordData, false);
+
+    expect(computePositionSpy).toHaveBeenCalled();
+    for (const call of computePositionSpy.mock.calls) {
+      expect(call[2]).toMatchObject({ strategy: "fixed" });
+    }
     renderer.hide();
   });
 

@@ -65,6 +65,10 @@ export class TooltipRenderer {
     this.cleanupFloating = autoUpdate(virtualEl, tooltip, () => {
       if (!tooltip) return;
       computePosition(virtualEl, tooltip, {
+        // Debe coincidir con `position: fixed` de styles.css: con la
+        // estrategia por defecto ("absolute") Floating UI suma el scroll y el
+        // tooltip acaba fuera de la ventana en cuanto la página se desplaza.
+        strategy: "fixed",
         placement: "top-start",
         middleware: [
           offset(10),
