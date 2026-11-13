@@ -82,7 +82,8 @@ User hovers over text
   ▼
 Content Script (index.ts)
   ├── HoverDetector: respects enabled flag + per-site blacklist, debounce 300ms → onHoverReady(x, y)
-  ├── TextExtractor: caretRangeFromPoint → word expansion → sentence context | selection with hit test
+  ├── TextExtractor: one caretRangeFromPoint → word + wordRange → sentence context | selection with hit test
+  ├── Same-word guard: if the cache key equals the visible tooltip's (shownKey), do nothing (no rebuild/abort/stat)
   ├── WordHighlight: yellow overlay on hovered word via Range.getClientRects()
   ├── Request generation guard: discards stale responses from previous hovers
   ├── L1 Cache (Map): check if already translated (key = text|hash(sentence)|lang|mode|model, TTL 30min)
@@ -111,12 +112,12 @@ Service Worker (service-worker.ts)
   │           ├── Build prompts: buildSystemPrompt(targetLang) + buildUserPrompt(...)
   │           ├── POST https://api.groq.com/openai/v1/chat/completions
   │           │     { model, temperature: 0.0, max_tokens: 2048, stream: false }
-  │           │     Qwen models: reasoning_format = "hidden"
+  │           │     Qwen: reasoning_effort "none" + reasoning_format "hidden"; GPT-OSS: reasoning_effort "low"
   │           │     └── Timeout 30s (AbortController) + retry 429 (1x, capped 10s Retry-After) + retry 5xx (2x)
   │           ├── extractJson() with <think> strip + balanced brace extraction
   │           ├── confidence: defaults to 0.5 if missing; always runs validateTranslationScript()
-  │           ├── L2 set → persist
-  │           └── sendResponse to content script
+  │           ├── sendResponse to content script
+  │           └── L2 set → persist (after responding; in-flight entry kept until the write ends; write failure ignored)
   │
   ▼
 Popup (popup.ts)
@@ -204,7 +205,7 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 13. **Request timeout (30s)** — `fetchWithTimeout()` with AbortController.
 14. **API-level retry** — `callGroqWithRetry()`: 429 (1x, capped 10s Retry-After), 5xx (2x exp backoff).
 15. **Keyboard shortcut** — `Ctrl+Shift+K` toggles HoverLingo on/off via `chrome.commands`. Popup reads actual shortcut dynamically.
-16. **MutationObserver** — watches DOM with 500ms debounce, resets tooltip on SPA navigations.
+16. **MutationObserver** — watches DOM with 500ms debounce, resets tooltip on SPA navigations. Connected only while `hovering` (no cost at rest, when disabled, or in idle iframes).
 17. **Translation script validation** — validates Unicode script against target language, sets confidence to 0 on mismatch. Always runs (confidence may be absent from model).
 18. **Local usage stats** — delta-based counters flushed every 10 events and on pagehide, with read-modify-write merge.
 19. **Export/Import settings** — JSON file with all 6 settings (API key excluded). Import validates types; export includes defaults.
@@ -217,6 +218,9 @@ Defined in `src/shared/constants.ts` → `AVAILABLE_MODELS`. Model ID format: `p
 26. **On-demand sentence translation** — localized "→ full sentence" button (`sentenceButton` in `_locales`) in the tooltip requests the full sentence via the same TRANSLATE message (`text = sentence`, always `mode: "quick"`); caches and request collapsing work unchanged. On-demand to protect Groq's free-tier TPM.
 27. **Block-level sentence extraction** — `extractBlockSentence()` walks the closest block ancestor with a single TreeWalker (spans inline elements, skips SCRIPT/STYLE/NOSCRIPT, newline at nested-block boundaries, `MAX_BLOCK_TEXT` fallback to node-local extraction).
 28. **Interactive tooltip** — `pointer-events: auto` + `isInTooltip()` guards in HoverDetector: mouse/scroll events inside the tooltip never idle it, tooltip's own DOM churn is excluded from the mutation threshold, page mutations don't hide it while the pointer is inside, and the button click doesn't propagate to the page.
+29. **Fixed positioning strategy** — `computePosition` uses `strategy: "fixed"` to match `position: fixed` in `styles.css`; the default `"absolute"` adds page scroll and pushed the tooltip off-screen after scrolling.
+30. **Same-word re-hover is a no-op** — `shownKey` (cache key of the visible tooltip) short-circuits `onHoverReady`; reset on idle, on extraction failure and on error so retries still work.
+31. **L2 key index** — `cache-l2.ts` keeps a lazily loaded in-memory `Set` of cache keys (`getKeys()` on Chrome 130+, `get(null)` fallback) and evicts the oldest 10% in one batch when full, so writes never read the whole storage.
 
 ---
 
@@ -332,7 +336,7 @@ Note: All `console.log/error/warn` statements removed from production build.
 - [x] **Fase 6 — Manual QA Fix (2026-07-12):** 2 bugs found during manual verification of the Fase 5 build: Quick mode `max_tokens` truncation and Learning mode explanation language. 1 new test.
 - [x] **Fase 7 — Mejoras v0.2.0 (2026-08-26):** request collapsing cross-tab, i18n popup EN/ES, botón reset stats, 7 tests de integración del SW.
 - [x] **Fase 8 — Traducción de frase completa (2026-08-26):** extracción a nivel de bloque, botón "→ frase completa" en tooltip interactivo, guards del hover detector (scroll/mutaciones/puntero dentro del tooltip), 18 tests nuevos.
-- [x] **Fase 9 — Rendimiento (2026-11-13):** L2 con índice de claves en memoria y expulsión por lotes (sin `get(null)` por escritura), SW responde antes de persistir en L2, MutationObserver conectado solo durante `hovering`, re-hover sobre la misma palabra no reconstruye tooltip ni repite petición, fix de rechazo no manejado en `l1Cache.setPending`, fix del tooltip fuera de pantalla tras scroll (`strategy: "fixed"`), un solo hit-test `caretRangeFromPoint` por hover (antes 3). 11 tests nuevos.
+- [x] **Fase 9 — Rendimiento (2026-11-13):** L2 con índice de claves en memoria y expulsión por lotes (sin `get(null)` por escritura), SW responde antes de persistir en L2, MutationObserver conectado solo durante `hovering`, re-hover sobre la misma palabra no reconstruye tooltip ni repite petición, fix de rechazo no manejado en `l1Cache.setPending`, fix del tooltip fuera de pantalla tras scroll (`strategy: "fixed"`), un solo hit-test `caretRangeFromPoint` por hover (antes 3). 11 tests nuevos. Auditoría de cierre: eliminados `getTargetLang`/`getMode` del SW (el content script siempre envía idioma y modo), `DEFAULTS.TARGET_LANG`/`MODE` y una rama inalcanzable en `renderContent`.
 
 ---
 
@@ -340,3 +344,4 @@ Note: All `console.log/error/warn` statements removed from production build.
 
 - [ ] Migrate to `@crxjs/vite-plugin` stable release when available
 - [ ] Sentence-specific prompt: on-demand sentence translation reuses the word-framed prompt, sending the sentence as both WORD and CONTEXT (duplicated tokens). A dedicated prompt would save tokens against Groq free-tier TPM.
+- [ ] Localize content-script strings: the on/off toast ("HoverLingo: Activado/Desactivado") and the tooltip error messages (`tooltipErrorFor()` in `src/content/index.ts`) are hardcoded in Spanish, so EN/CA users see Spanish there while the popup and sentence button are localized. Move them to `_locales` like `sentenceButton`.

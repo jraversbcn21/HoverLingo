@@ -92,4 +92,4 @@ Watch mode:
 npm run test:watch
 ```
 
-74 unit tests across 11 files cover cache logic, prompt building, text and sentence extraction, tooltip interaction, hover-detector guards, JSON parsing, settings validation, and service-worker message handling.
+85 unit tests across 12 files cover cache logic, prompt building, text and sentence extraction, tooltip interaction and positioning, hover-detector guards, content-script hover flow, JSON parsing, settings validation, and service-worker message handling.
